@@ -1,0 +1,28 @@
+{
+  "name": "gessa-boletos-mvp",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node src/server.js",
+    "test": "node test-completo.js",
+    "test:sistema": "node test-sistema.js",
+    "test:validacion": "node test-validacion.js",
+    "test:autorizaciones": "node test-autorizaciones.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "bcrypt": "^6.0.0",
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "multer": "^2.0.2",
+    "pdfkit": "^0.17.2",
+    "qrcode": "^1.5.4",
+    "sqlite3": "^5.1.7",
+    "uuid": "^9.0.1"
+  }
+}

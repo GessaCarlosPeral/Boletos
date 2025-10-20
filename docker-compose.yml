@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: gessa-boletos-app
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+    volumes:
+      # Volúmenes persistentes para datos críticos
+      - ./data:/app/data
+      - ./escaneos:/app/escaneos
+      - ./comprobantes:/app/comprobantes
+      - ./pdfs:/app/pdfs
+    restart: unless-stopped
+    networks:
+      - gessa-network
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000', (r) => {if (r.statusCode !== 200) throw new Error(r.statusCode)})"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 40s
+
+networks:
+  gessa-network:
+    driver: bridge

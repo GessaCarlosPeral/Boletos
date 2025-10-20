@@ -1,0 +1,48 @@
+# Node.js
+node_modules/
+npm-debug.log
+yarn-error.log
+package-lock.json
+
+# Base de datos y archivos generados (no subir datos reales)
+data/*.db
+data/*.db-journal
+
+# Archivos subidos por usuarios
+escaneos/*
+comprobantes/*
+pdfs/*
+
+# Mantener las carpetas pero no su contenido
+!escaneos/.gitkeep
+!comprobantes/.gitkeep
+!pdfs/.gitkeep
+!data/.gitkeep
+
+# Variables de entorno
+.env
+.env.local
+.env.*.local
+
+# Archivos del sistema
+.DS_Store
+Thumbs.db
+
+# SSL (certificados locales)
+ssl/
+
+# Logs
+logs
+*.log
+
+# Archivos temporales
+tmp
+temp
+.cache
+
+# IDEs
+.vscode
+.idea
+*.swp
+*.swo
+*~
