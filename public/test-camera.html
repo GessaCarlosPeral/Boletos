@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test Cámara</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+    button {
+      width: 100%;
+      padding: 20px;
+      font-size: 18px;
+      margin: 10px 0;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    .btn-test {
+      background: #2563eb;
+      color: white;
+    }
+    #video {
+      width: 100%;
+      margin-top: 20px;
+      display: none;
+      border: 3px solid green;
+    }
+    #log {
+      background: #f0f0f0;
+      padding: 10px;
+      margin-top: 20px;
+      border-radius: 5px;
+      font-size: 12px;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+  </style>
+</head>
+<body>
+  <h1>🔬 Test de Cámara</h1>
+  <p>Esta página ayuda a diagnosticar problemas con la cámara</p>
+
+  <button id="btn1" class="btn-test">1️⃣ Test Alert Simple</button>
+  <button id="btn2" class="btn-test">2️⃣ Test Navigator Disponible</button>
+  <button id="btn3" class="btn-test">3️⃣ Test Pedir Cámara</button>
+  <button id="btn4" class="btn-test">4️⃣ Test Video Stream</button>
+
+  <video id="video" autoplay playsinline></video>
+
+  <div id="log">
+    <strong>LOG:</strong><br>
+  </div>
+
+  <script>
+    const video = document.getElementById('video');
+    const logDiv = document.getElementById('log');
+
+    function log(message) {
+      console.log(message);
+      logDiv.innerHTML += message + '<br>';
+      logDiv.scrollTop = logDiv.scrollHeight;
+    }
+
+    log('✅ Script cargado correctamente');
+
+    // Test 1: Alert simple
+    document.getElementById('btn1').addEventListener('click', () => {
+      log('🔘 Botón 1 clickeado');
+      alert('✅ El botón funciona!');
+      log('✅ Alert mostrado');
+    });
+
+    // Test 2: Verificar navigator
+    document.getElementById('btn2').addEventListener('click', () => {
+      log('🔘 Botón 2 clickeado');
+
+      if (navigator.mediaDevices) {
+        log('✅ navigator.mediaDevices disponible');
+        alert('✅ navigator.mediaDevices está disponible');
+      } else {
+        log('❌ navigator.mediaDevices NO disponible');
+        alert('❌ navigator.mediaDevices NO está disponible');
+      }
+
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        log('✅ getUserMedia disponible');
+        alert('✅ getUserMedia está disponible');
+      } else {
+        log('❌ getUserMedia NO disponible');
+        alert('❌ getUserMedia NO está disponible');
+      }
+    });
+
+    // Test 3: Pedir cámara
+    document.getElementById('btn3').addEventListener('click', async () => {
+      log('🔘 Botón 3 clickeado - solicitando cámara...');
+
+      try {
+        log('📹 Llamando a getUserMedia...');
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'environment' }
+        });
+
+        log('✅ Stream obtenido: ' + stream.id);
+        alert('✅ Cámara obtenida correctamente!');
+
+        // Detener stream
+        stream.getTracks().forEach(track => {
+          track.stop();
+          log('🛑 Track detenido');
+        });
+
+      } catch (error) {
+        log('❌ Error: ' + error.name + ' - ' + error.message);
+        alert('❌ Error: ' + error.name + '\n' + error.message);
+      }
+    });
+
+    // Test 4: Video stream completo
+    document.getElementById('btn4').addEventListener('click', async () => {
+      log('🔘 Botón 4 clickeado - iniciando video...');
+
+      try {
+        log('📹 Solicitando acceso a cámara...');
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: 'environment',
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          }
+        });
+
+        log('✅ Stream obtenido');
+        log('📺 Asignando stream a video element...');
+
+        video.srcObject = stream;
+        video.style.display = 'block';
+
+        await video.play();
+        log('✅ Video reproduciendo');
+        alert('✅ Video iniciado! Deberías ver la cámara abajo');
+
+      } catch (error) {
+        log('❌ Error: ' + error.name + ' - ' + error.message);
+        alert('❌ Error: ' + error.name + '\n' + error.message);
+      }
+    });
+
+    log('✅ Todos los event listeners registrados');
+    log('👉 Toca los botones en orden (1, 2, 3, 4)');
+  </script>
+</body>
+</html>

@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Panel Admin - GESSA Boletos</title>
+  <link rel="stylesheet" href="admin.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <div class="container">
+    <div class="header" style="display: flex; justify-content: space-between; align-items: center;">
+      <div>
+        <h1>🎫 GESSA - Panel de Administración</h1>
+        <p>Sistema de Generación de Boletos</p>
+      </div>
+      <div id="userInfo" style="text-align: right; padding: 1rem 1.5rem; background: rgba(255, 255, 255, 0.15); border-radius: 0.75rem; color: white; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+        <div style="font-size: 0.75rem; opacity: 0.85; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.25rem;">👤 Usuario</div>
+        <div id="userName" style="font-weight: 700; font-size: 1.25rem; margin-bottom: 0.25rem;"></div>
+        <div id="userRole" style="font-size: 0.875rem; opacity: 0.9; margin-bottom: 0.75rem; padding: 0.25rem 0.5rem; background: rgba(255, 255, 255, 0.1); border-radius: 0.25rem; display: inline-block;"></div>
+        <div>
+          <button onclick="cerrarSesion()" style="background: #ef4444; color: white; border: none; padding: 0.5rem 1.25rem; border-radius: 0.5rem; cursor: pointer; font-size: 0.875rem; font-weight: 600; transition: all 0.2s; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2); width: 100%;" onmouseover="this.style.background='#dc2626'; this.style.transform='translateY(-1px)'; this.style.boxShadow='0 4px 8px rgba(0, 0, 0, 0.3)'" onmouseout="this.style.background='#ef4444'; this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 4px rgba(0, 0, 0, 0.2)'">
+            🚪 Cerrar Sesión
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tabs de navegación -->
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="generar">📝 Generar Boletos</button>
+      <button class="tab-btn" data-tab="lotes">📦 Ver Lotes</button>
+      <button class="tab-btn" data-tab="stats">📊 Estadísticas</button>
+      <button class="tab-btn" data-tab="precios">💰 Precios</button>
+      <button class="tab-btn" data-tab="usuarios">👥 Usuarios</button>
+    </div>
+
+    <!-- TAB 1: Generar Boletos -->
+    <div class="tab-content active" id="tab-generar">
+      <div class="card">
+        <h2>📝 Generar Nuevo Lote de Boletos</h2>
+
+        <form id="generarForm">
+          <div class="form-group">
+            <label for="contratista">Nombre del Contratista *</label>
+            <select id="contratista">
+              <option value="">Seleccione o escriba nuevo...</option>
+              <option value="otro">➕ Otro (escribir nuevo)</option>
+            </select>
+          </div>
+
+          <div class="form-group" id="contratistaCustomGroup" style="display: none;">
+            <label for="contratistaCustom">Nombre del Nuevo Contratista</label>
+            <input type="text" id="contratistaCustom" placeholder="Ej: Empresa ABC SA de CV">
+          </div>
+
+          <div class="form-group">
+            <label for="comedor">Comedor (opcional)</label>
+            <select id="comedor">
+              <option value="">Sin comedor asignado</option>
+              <option value="nuevo">➕ Nuevo comedor</option>
+            </select>
+          </div>
+
+          <div class="form-group" id="comedorCustomGroup" style="display: none;">
+            <label for="comedorCustom">Nombre del Nuevo Comedor</label>
+            <input type="text" id="comedorCustom" placeholder="Ej: Comedor Norte">
+          </div>
+
+          <div class="form-group">
+            <label for="precioSelect">Tipo de Platillo *</label>
+            <select id="precioSelect" required>
+              <option value="">Seleccione un platillo</option>
+            </select>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="cantidad">Cantidad de Boletos *</label>
+              <input type="number" id="cantidad" min="1" max="10000" value="1" required>
+            </div>
+
+            <div class="form-group">
+              <label for="monto">Monto Total ($)</label>
+              <input type="number" id="monto" min="0" step="0.01" placeholder="0.00" readonly style="background-color: #f3f4f6; cursor: not-allowed;">
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="fechaVencimiento">Fecha de Vencimiento *</label>
+              <input type="date" id="fechaVencimiento" required>
+            </div>
+
+            <div class="form-group">
+              <label for="tipoPago">Tipo de Pago *</label>
+              <select id="tipoPago" required>
+                <option value="CONTADO">💵 Contado</option>
+                <option value="CREDITO">💳 Crédito</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="quick-dates">
+            <button type="button" class="quick-date-btn" data-months="1">+1 Mes</button>
+            <button type="button" class="quick-date-btn" data-months="3">+3 Meses</button>
+            <button type="button" class="quick-date-btn" data-months="6">+6 Meses</button>
+            <button type="button" class="quick-date-btn" data-year="2025">Fin 2025</button>
+          </div>
+
+          <div style="margin-top: 1.5rem;">
+            <button type="submit" class="btn btn-primary" id="generarBtn">
+              🎫 Generar Lote de Boletos
+            </button>
+          </div>
+        </form>
+
+        <div class="result-box" id="resultBox">
+          <h3>✅ Lote Generado Exitosamente</h3>
+          <div class="result-info" id="resultInfo"></div>
+          <a href="#" class="download-link" id="downloadLink" download>
+            📥 Descargar PDF de Boletos
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 2: Ver Lotes -->
+    <div class="tab-content" id="tab-lotes">
+      <div class="card">
+        <h2>📦 Lotes de Boletos</h2>
+
+        <!-- Filtros y Ordenación -->
+        <div class="filters">
+          <div class="form-row">
+            <div class="form-group">
+              <label for="buscarLote">Buscar por número de lote:</label>
+              <input type="text" id="buscarLote" placeholder="🔍 Escriba el número de lote...">
+            </div>
+            <div class="form-group">
+              <label for="filtroContratista">Filtrar por contratista:</label>
+              <select id="filtroContratista">
+                <option value="">Todos los contratistas</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="ordenarLotes">Ordenar por:</label>
+              <select id="ordenarLotes">
+                <option value="recientes">Más recientes primero</option>
+                <option value="antiguos">Más antiguos primero</option>
+                <option value="actividad">Última actividad</option>
+                <option value="rechazos">Más rechazos</option>
+                <option value="pendientes">Estado: Pendientes primero</option>
+                <option value="cantidad">Mayor cantidad de boletos</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Lista de lotes -->
+        <div id="lotesContainer" class="lotes-list">
+          <div class="loading">
+            <div class="spinner"></div>
+            <p>Cargando lotes...</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal de detalle de lote -->
+      <div id="loteModal" class="modal">
+        <div class="modal-content">
+          <span class="modal-close">&times;</span>
+          <h2 id="modalTitle">Detalle del Lote</h2>
+
+          <div class="lote-info" id="modalLoteInfo"></div>
+
+          <!-- Sección de autorización de pago -->
+          <div id="autorizacionSection" style="display: none;">
+            <h3 style="margin: 1.5rem 0 1rem; color: #1e293b;">Autorizar Descarga de Boletos</h3>
+            <form id="autorizacionForm" class="autorizacion-form">
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Código de Autorización</label>
+                  <input type="text" id="codigoAuth" readonly placeholder="Se genera automáticamente" style="background-color: #f3f4f6; cursor: not-allowed;">
+                </div>
+                <div class="form-group">
+                  <label>Autorizado Por *</label>
+                  <input type="text" id="autorizadoPor" readonly required style="background-color: #f3f4f6; cursor: not-allowed;">
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Fecha de Pago *</label>
+                  <input type="date" id="fechaPagoAuth" required>
+                </div>
+                <div class="form-group">
+                  <label id="labelComprobante">Comprobante de Pago (imagen) *</label>
+                  <input type="file" id="comprobantePago" accept="image/*">
+                </div>
+              </div>
+              <div class="form-group">
+                <label>Notas</label>
+                <textarea id="notasAuth" rows="3" placeholder="Notas adicionales..."></textarea>
+              </div>
+              <button type="submit" class="btn btn-primary">✓ Autorizar Descarga</button>
+            </form>
+          </div>
+
+          <div class="boletos-table-container">
+            <div class="table-controls">
+              <input type="text" id="searchBoleto" placeholder="🔍 Buscar por UUID...">
+              <select id="filtroEstado">
+                <option value="">Todos los estados</option>
+                <option value="DISPONIBLE">Disponibles</option>
+                <option value="USADO">Usados</option>
+                <option value="VENCIDO">Vencidos</option>
+              </select>
+            </div>
+
+            <div id="boletosTable" class="boletos-table"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal de descarga con razón -->
+      <div id="descargaModal" class="modal">
+        <div class="modal-content" style="max-width: 500px;">
+          <span class="modal-close" onclick="cerrarModalDescarga()">&times;</span>
+          <h2>📥 Descargar PDF de Boletos</h2>
+
+          <div style="margin: 1.5rem 0;">
+            <p style="color: #64748b; margin-bottom: 1rem;">
+              Por favor complete la información requerida para registrar esta descarga.
+            </p>
+
+            <form id="descargaForm">
+              <div class="form-group">
+                <label>Usuario que descarga *</label>
+                <input type="text" id="usuarioDescarga" required placeholder="Nombre completo">
+              </div>
+
+              <div class="form-group">
+                <label>Razón de la descarga *</label>
+                <select id="razonDescarga" required>
+                  <option value="">Seleccione una razón...</option>
+                  <option value="Primera impresión">Primera impresión</option>
+                  <option value="Reimpresión por extravío">Reimpresión por extravío</option>
+                  <option value="Reimpresión por daño">Reimpresión por daño</option>
+                  <option value="Corrección de datos">Corrección de datos</option>
+                  <option value="Archivo/Respaldo">Archivo/Respaldo</option>
+                  <option value="Otro">Otro</option>
+                </select>
+              </div>
+
+              <div class="form-group" id="razonOtraGroup" style="display: none;">
+                <label>Especifique la razón *</label>
+                <textarea id="razonOtra" rows="3" placeholder="Describa la razón de la descarga..."></textarea>
+              </div>
+
+              <div style="display: flex; gap: 0.75rem; margin-top: 1.5rem;">
+                <button type="button" class="btn" onclick="cerrarModalDescarga()" style="flex: 1;">
+                  Cancelar
+                </button>
+                <button type="submit" class="btn btn-primary" style="flex: 1;">
+                  📥 Descargar
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 4: Precios -->
+    <div class="tab-content" id="tab-precios">
+      <div class="card">
+        <h2>💰 Configuración de Precios</h2>
+
+        <!-- Formulario para agregar/editar precio -->
+        <div class="precio-form-container" style="background: #f8fafc; padding: 1.5rem; border-radius: 0.5rem; margin-bottom: 2rem;">
+          <h3 style="color: #1e293b; margin-bottom: 1rem; font-size: 1.1rem;">Agregar/Editar Precio</h3>
+          <form id="precioForm">
+            <input type="hidden" id="precioId">
+            <div class="form-row">
+              <div class="form-group">
+                <label for="precioNombre">Nombre del Precio *</label>
+                <input type="text" id="precioNombre" required placeholder="Ej: Precio Estándar">
+              </div>
+              <div class="form-group">
+                <label for="precioUnitario">Precio Unitario ($) *</label>
+                <input type="number" id="precioUnitario" step="0.01" min="0" required placeholder="0.00">
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="precioDescripcion">Descripción (opcional)</label>
+              <textarea id="precioDescripcion" rows="2" placeholder="Descripción del precio..." style="width: 100%; padding: 0.75rem; border: 2px solid #e2e8f0; border-radius: 0.5rem; font-size: 1rem; font-family: inherit; resize: vertical;"></textarea>
+            </div>
+            <div style="display: flex; gap: 0.75rem;">
+              <button type="submit" class="btn btn-primary" style="flex: 1;">
+                💾 Guardar Precio
+              </button>
+              <button type="button" class="btn" id="cancelarPrecioBtn" style="flex: 1; background: #e2e8f0; display: none;">
+                Cancelar
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Precio Activo Actual -->
+        <div id="precioActivoContainer" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 1.5rem; border-radius: 0.75rem; margin-bottom: 2rem; text-align: center;">
+          <p style="font-size: 0.875rem; opacity: 0.9; margin-bottom: 0.5rem;">PRECIO ACTIVO ACTUAL</p>
+          <div id="precioActivoValor" style="font-size: 2.5rem; font-weight: bold;">$0.00</div>
+          <div id="precioActivoNombre" style="font-size: 0.875rem; opacity: 0.9; margin-top: 0.5rem;">-</div>
+        </div>
+
+        <!-- Lista de precios -->
+        <h3 style="color: #1e293b; margin-bottom: 1rem; font-size: 1.1rem;">Todos los Precios</h3>
+        <div id="preciosContainer">
+          <div class="loading">
+            <div class="spinner"></div>
+            <p>Cargando precios...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 3: Estadísticas -->
+    <div class="tab-content" id="tab-stats">
+      <div class="card">
+        <h2>📊 Estadísticas del Sistema</h2>
+
+        <!-- Filtros de estadísticas -->
+        <div class="filters" style="margin-bottom: 1.5rem;">
+          <div class="form-row">
+            <div class="form-group">
+              <label for="filtroStatsContratista">Filtrar por contratista:</label>
+              <select id="filtroStatsContratista">
+                <option value="">Todos los contratistas</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="filtroStatsComedor">Filtrar por comedor:</label>
+              <select id="filtroStatsComedor">
+                <option value="">Todos los comedores</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div id="statsContainer">
+          <div class="loading">
+            <div class="spinner"></div>
+            <p>Cargando estadísticas...</p>
+          </div>
+        </div>
+
+        <!-- Sección de Gráficas -->
+        <div id="graficasContainer" style="margin-top: 2rem;">
+          <h3 style="margin: 2rem 0 1rem; color: #1e293b;">📊 Gráficas de Análisis</h3>
+
+          <div class="graficas-grid">
+            <!-- Fila 1: Gráficas de Línea -->
+            <div class="grafica-card">
+              <h4>Boletos Generados en el Tiempo</h4>
+              <canvas id="chartBoletosTime"></canvas>
+            </div>
+            <div class="grafica-card">
+              <h4>Ingresos en el Tiempo</h4>
+              <canvas id="chartIngresosTime"></canvas>
+            </div>
+          </div>
+
+          <div class="graficas-grid">
+            <!-- Fila 2: Uso y Top Contratistas -->
+            <div class="grafica-card">
+              <h4>Tasa de Uso de Boletos</h4>
+              <canvas id="chartUsoTime"></canvas>
+            </div>
+            <div class="grafica-card">
+              <h4>Top 5 Contratistas</h4>
+              <canvas id="chartTopContratistas"></canvas>
+            </div>
+          </div>
+
+          <div class="graficas-grid">
+            <!-- Fila 3: Distribuciones -->
+            <div class="grafica-card">
+              <h4>Distribución por Comedor</h4>
+              <canvas id="chartComedores"></canvas>
+            </div>
+            <div class="grafica-card">
+              <h4>Estado de Pagos</h4>
+              <canvas id="chartEstadoPagos"></canvas>
+            </div>
+          </div>
+
+          <div class="graficas-grid">
+            <!-- Fila 4: Distribución por Platillos -->
+            <div class="grafica-card">
+              <h4>🍽️ Distribución por Tipo de Platillo</h4>
+              <canvas id="chartPlatillos"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 5: Gestión de Usuarios -->
+    <div class="tab-content" id="tab-usuarios">
+      <div class="card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+          <h2>👥 Gestión de Usuarios</h2>
+          <button class="btn btn-primary" onclick="abrirModalUsuario()">
+            ➕ Nuevo Usuario
+          </button>
+        </div>
+
+        <!-- Filtros -->
+        <div class="filters" style="margin-bottom: 1.5rem;">
+          <div class="form-row">
+            <div class="form-group">
+              <label for="filtroUsuarioRol">Filtrar por rol:</label>
+              <select id="filtroUsuarioRol" onchange="cargarUsuarios()">
+                <option value="">Todos los roles</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="filtroUsuarioEstado">Filtrar por estado:</label>
+              <select id="filtroUsuarioEstado" onchange="cargarUsuarios()">
+                <option value="">Todos</option>
+                <option value="activo">Activos</option>
+                <option value="inactivo">Inactivos</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Lista de usuarios -->
+        <div id="usuariosContainer">
+          <div class="loading">
+            <div class="spinner"></div>
+            <p>Cargando usuarios...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Modal de crear/editar usuario -->
+  <div id="usuarioModal" class="modal">
+    <div class="modal-content">
+      <span class="modal-close" onclick="cerrarModalUsuario()">&times;</span>
+      <h2 id="usuarioModalTitle">Nuevo Usuario</h2>
+
+      <form id="usuarioForm" onsubmit="guardarUsuario(event)">
+        <input type="hidden" id="usuarioId">
+
+        <div class="form-group">
+          <label for="usuarioUsername">Nombre de usuario *</label>
+          <input type="text" id="usuarioUsername" required placeholder="Ej: jperez">
+        </div>
+
+        <div class="form-group">
+          <label for="usuarioNombreCompleto">Nombre completo *</label>
+          <input type="text" id="usuarioNombreCompleto" required placeholder="Ej: Juan Pérez">
+        </div>
+
+        <div class="form-group">
+          <label for="usuarioEmail">Email *</label>
+          <input type="email" id="usuarioEmail" required placeholder="correo@ejemplo.com">
+        </div>
+
+        <div class="form-group">
+          <label for="usuarioRol">Rol *</label>
+          <select id="usuarioRol" required>
+            <option value="">Seleccione un rol...</option>
+          </select>
+        </div>
+
+        <div class="form-group" id="passwordGroup">
+          <label for="usuarioPassword">Contraseña *</label>
+          <input type="password" id="usuarioPassword" minlength="6" placeholder="Mínimo 6 caracteres">
+          <small style="display: block; margin-top: 0.25rem; color: #64748b;">
+            Mínimo 6 caracteres
+          </small>
+        </div>
+
+        <div style="display: flex; gap: 0.75rem; margin-top: 1.5rem;">
+          <button type="submit" class="btn btn-primary" style="flex: 1;">
+            💾 Guardar Usuario
+          </button>
+          <button type="button" class="btn" onclick="cerrarModalUsuario()" style="flex: 1; background: #e2e8f0;">
+            Cancelar
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal de actividad del usuario -->
+  <div id="actividadUsuarioModal" class="modal">
+    <div class="modal-content" style="max-width: 900px;">
+      <span class="modal-close" onclick="cerrarModalActividad()">&times;</span>
+      <h2 id="actividadModalTitle">Historial de Actividad</h2>
+
+      <div id="actividadContainer" style="margin-top: 1.5rem;">
+        <div class="loading">
+          <div class="spinner"></div>
+          <p>Cargando actividad...</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de galería de fotos de escaneos -->
+  <div id="fotosModal" class="modal">
+    <div class="modal-content" style="max-width: 1200px;">
+      <span class="modal-close" onclick="cerrarModalFotos()">&times;</span>
+      <h2 id="fotosModalTitle">Fotos de Escaneos</h2>
+
+      <div id="fotosGallery" style="margin-top: 1.5rem;">
+        <div class="loading">
+          <div class="spinner"></div>
+          <p>Cargando fotos...</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de zoom de foto individual -->
+  <div id="fotoZoomModal" class="modal">
+    <div class="modal-content" style="max-width: 90vw; max-height: 90vh; padding: 0; background: #000;">
+      <span class="modal-close" onclick="cerrarModalZoom()" style="position: absolute; top: 10px; right: 10px; color: white; font-size: 2rem; z-index: 10; background: rgba(0,0,0,0.5); width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border-radius: 50%; cursor: pointer;">&times;</span>
+      <img id="fotoZoomImg" src="" alt="Foto ampliada" style="width: 100%; height: auto; max-height: 90vh; object-fit: contain;">
+      <div id="fotoZoomInfo" style="position: absolute; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,0.7); color: white; padding: 1rem;"></div>
+    </div>
+  </div>
+
+  <script src="admin.js"></script>
+</body>
+</html>

@@ -1,0 +1,402 @@
+// Estado de la aplicación
+let scanning = false;
+let stream = null;
+const statsValidados = { count: 0 };
+const statsRechazados = { count: 0 };
+
+// Esperar a que el DOM esté listo
+document.addEventListener('DOMContentLoaded', () => {
+  console.log('✅ DOM cargado, inicializando validador...');
+  inicializarValidador();
+});
+
+function inicializarValidador() {
+  // Elementos del DOM
+  const video = document.getElementById('video');
+  const canvas = document.getElementById('canvas');
+
+  if (!canvas) {
+    console.error('❌ Canvas no encontrado');
+    return;
+  }
+
+  const ctx = canvas.getContext('2d');
+  const startScanBtn = document.getElementById('startScan');
+  const manualCodeInput = document.getElementById('manualCode');
+  const validateManualBtn = document.getElementById('validateManual');
+  const resultDiv = document.getElementById('result');
+  const offlineIndicator = document.getElementById('offlineIndicator');
+  const cameraInstructions = document.getElementById('cameraInstructions');
+
+  console.log('✅ Elementos del DOM encontrados');
+  console.log('Video:', video);
+  console.log('StartBtn:', startScanBtn);
+
+// Detección de conexión
+window.addEventListener('online', () => {
+  offlineIndicator.classList.remove('show');
+  console.log('Conexión restaurada');
+});
+
+window.addEventListener('offline', () => {
+  offlineIndicator.classList.add('show');
+  console.log('Sin conexión - Modo offline');
+});
+
+// Iniciar escáner de cámara
+startScanBtn.addEventListener('click', async () => {
+  console.log('🔘 Botón clickeado, scanning =', scanning);
+  alert('Botón clickeado - iniciando cámara...'); // DEBUG
+
+  if (!scanning) {
+    await startScanning();
+  } else {
+    stopScanning();
+  }
+});
+
+// Validar código manual
+validateManualBtn.addEventListener('click', async () => {
+  const code = manualCodeInput.value.trim();
+  if (code) {
+    await validarBoleto(code);
+    manualCodeInput.value = '';
+  }
+});
+
+// Enter en input manual
+manualCodeInput.addEventListener('keypress', (e) => {
+  if (e.key === 'Enter') {
+    validateManualBtn.click();
+  }
+});
+
+// Iniciar escaneo
+async function startScanning() {
+  console.log('Intentando iniciar cámara...');
+
+  // Verificar si getUserMedia está disponible
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    alert('Tu navegador no soporta acceso a la cámara. Usa el código manual o actualiza tu navegador.');
+    return;
+  }
+
+  try {
+    console.log('Solicitando acceso a cámara...');
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: {
+        facingMode: 'environment',
+        width: { ideal: 1280 },
+        height: { ideal: 720 }
+      }
+    });
+
+    console.log('Cámara obtenida, configurando video...');
+    video.srcObject = stream;
+    video.setAttribute('playsinline', true);
+
+    // Esperar a que el video esté listo
+    await video.play();
+    console.log('Video iniciado correctamente');
+
+    scanning = true;
+    video.style.display = 'block';
+    video.classList.add('active');
+    cameraInstructions.classList.add('show');
+    startScanBtn.textContent = '❌ Cancelar Escaneo';
+    startScanBtn.classList.remove('btn-primary');
+    startScanBtn.classList.add('btn-secondary');
+
+    requestAnimationFrame(tick);
+  } catch (err) {
+    console.error('Error accediendo a la cámara:', err);
+    console.error('Tipo de error:', err.name);
+    console.error('Mensaje:', err.message);
+
+    let mensaje = 'No se pudo acceder a la cámara.\n\n';
+
+    if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+      mensaje += 'Permisos denegados. Por favor permite el acceso a la cámara en la configuración de tu navegador.';
+    } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+      mensaje += 'No se encontró ninguna cámara en tu dispositivo.';
+    } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
+      mensaje += 'La cámara está siendo usada por otra aplicación.';
+    } else if (err.name === 'OverconstrainedError') {
+      mensaje += 'No se pudo configurar la cámara con los ajustes solicitados.';
+    } else if (err.name === 'NotSupportedError') {
+      mensaje += 'Tu navegador no soporta acceso a la cámara o necesitas usar HTTPS.';
+    } else {
+      mensaje += 'Error: ' + err.message;
+    }
+
+    mensaje += '\n\nPuedes usar el código manual como alternativa.';
+    alert(mensaje);
+  }
+}
+
+// Detener escaneo
+function stopScanning() {
+  scanning = false;
+
+  if (stream) {
+    stream.getTracks().forEach(track => track.stop());
+    stream = null;
+  }
+
+  video.style.display = 'none';
+  video.classList.remove('active');
+  cameraInstructions.classList.remove('show');
+  startScanBtn.textContent = '🎫 Escanear y Consumir Boleto';
+  startScanBtn.classList.remove('btn-secondary');
+  startScanBtn.classList.add('btn-primary');
+}
+
+// Loop de escaneo
+function tick() {
+  if (!scanning) return;
+
+  if (video.readyState === video.HAVE_ENOUGH_DATA) {
+    canvas.height = video.videoHeight;
+    canvas.width = video.videoWidth;
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const code = jsQR(imageData.data, imageData.width, imageData.height, {
+      inversionAttempts: 'dontInvert',
+    });
+
+    if (code) {
+      // Código QR detectado
+      vibrate();
+      beep();
+      validarBoleto(code.data);
+      stopScanning();
+      return;
+    }
+  }
+
+  requestAnimationFrame(tick);
+}
+
+// Validar boleto contra API
+async function validarBoleto(uuid) {
+  mostrarLoading();
+
+  try {
+    // Validar formato UUID
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(uuid)) {
+      mostrarResultado('error', 'Código Inválido', 'El código escaneado no es válido');
+      statsRechazados.count++;
+      actualizarStats();
+      return;
+    }
+
+    // Llamar a la API
+    const response = await fetch('/api/boletos/validar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ uuid })
+    });
+
+    const data = await response.json();
+
+    if (data.valido) {
+      // Marcar como usado
+      const usarResponse = await fetch('/api/boletos/usar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ uuid, ubicacion: 'Comedor principal' })
+      });
+
+      const usarData = await usarResponse.json();
+
+      if (usarData.exito) {
+        mostrarResultado(
+          'success',
+          '✅ BOLETO VÁLIDO',
+          'Acceso autorizado al comedor',
+          {
+            'Contratista': data.boleto.contratista,
+            'Fecha de uso': new Date(usarData.fechaUso).toLocaleString('es-MX'),
+            'Ubicación': usarData.ubicacion
+          }
+        );
+        statsValidados.count++;
+        playSuccessSound();
+      } else {
+        throw new Error('Error al registrar uso');
+      }
+    } else {
+      // Boleto no válido
+      mostrarResultado(
+        'error',
+        '❌ BOLETO RECHAZADO',
+        data.mensaje,
+        data.fechaUso ? {
+          'Usado el': new Date(data.fechaUso).toLocaleString('es-MX')
+        } : null
+      );
+      statsRechazados.count++;
+      playErrorSound();
+    }
+
+    actualizarStats();
+
+  } catch (error) {
+    console.error('Error validando boleto:', error);
+    mostrarResultado(
+      'error',
+      'Error de Conexión',
+      'No se pudo validar el boleto. Verifica tu conexión.'
+    );
+    statsRechazados.count++;
+    actualizarStats();
+  }
+}
+
+// Mostrar resultado
+function mostrarResultado(tipo, titulo, mensaje, detalles = null) {
+  const iconos = {
+    success: '✅',
+    error: '❌',
+    warning: '⚠️'
+  };
+
+  let html = `
+    <div class="result-icon">${iconos[tipo]}</div>
+    <div class="result-title">${titulo}</div>
+    <div class="result-message">${mensaje}</div>
+  `;
+
+  if (detalles) {
+    html += '<div class="result-details">';
+    for (const [key, value] of Object.entries(detalles)) {
+      html += `<div><strong>${key}:</strong> ${value}</div>`;
+    }
+    html += '</div>';
+  }
+
+  resultDiv.innerHTML = html;
+  resultDiv.className = `result ${tipo}`;
+  resultDiv.style.display = 'block';
+
+  // Ocultar después de 5 segundos
+  setTimeout(() => {
+    resultDiv.style.display = 'none';
+  }, 5000);
+}
+
+// Mostrar loading
+function mostrarLoading() {
+  resultDiv.innerHTML = `
+    <div class="loading">
+      <div class="spinner"></div>
+      <p>Validando boleto...</p>
+    </div>
+  `;
+  resultDiv.className = 'result';
+  resultDiv.style.display = 'block';
+}
+
+// Actualizar estadísticas
+function actualizarStats() {
+  document.getElementById('statsValidados').textContent = statsValidados.count;
+  document.getElementById('statsRechazados').textContent = statsRechazados.count;
+
+  // Guardar en localStorage
+  localStorage.setItem('statsValidados', statsValidados.count);
+  localStorage.setItem('statsRechazados', statsRechazados.count);
+}
+
+// Cargar estadísticas del día
+function cargarStats() {
+  const hoy = new Date().toDateString();
+  const ultimaFecha = localStorage.getItem('statsDate');
+
+  if (ultimaFecha === hoy) {
+    statsValidados.count = parseInt(localStorage.getItem('statsValidados') || '0');
+    statsRechazados.count = parseInt(localStorage.getItem('statsRechazados') || '0');
+  } else {
+    // Nuevo día, resetear
+    statsValidados.count = 0;
+    statsRechazados.count = 0;
+    localStorage.setItem('statsDate', hoy);
+  }
+
+  actualizarStats();
+}
+
+// Vibración
+function vibrate() {
+  if ('vibrate' in navigator) {
+    navigator.vibrate(200);
+  }
+}
+
+// Beep simple
+function beep() {
+  const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+  const oscillator = audioContext.createOscillator();
+  const gainNode = audioContext.createGain();
+
+  oscillator.connect(gainNode);
+  gainNode.connect(audioContext.destination);
+
+  oscillator.frequency.value = 800;
+  oscillator.type = 'sine';
+  gainNode.gain.value = 0.3;
+
+  oscillator.start();
+  setTimeout(() => oscillator.stop(), 100);
+}
+
+// Sonido de éxito
+function playSuccessSound() {
+  const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+  const oscillator = audioContext.createOscillator();
+  const gainNode = audioContext.createGain();
+
+  oscillator.connect(gainNode);
+  gainNode.connect(audioContext.destination);
+
+  oscillator.frequency.value = 800;
+  oscillator.type = 'sine';
+  gainNode.gain.value = 0.3;
+
+  oscillator.start();
+  setTimeout(() => {
+    oscillator.frequency.value = 1000;
+    setTimeout(() => oscillator.stop(), 100);
+  }, 100);
+}
+
+// Sonido de error
+function playErrorSound() {
+  const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+  const oscillator = audioContext.createOscillator();
+  const gainNode = audioContext.createGain();
+
+  oscillator.connect(gainNode);
+  gainNode.connect(audioContext.destination);
+
+  oscillator.frequency.value = 400;
+  oscillator.type = 'sine';
+  gainNode.gain.value = 0.3;
+
+  oscillator.start();
+  setTimeout(() => {
+    oscillator.frequency.value = 300;
+    setTimeout(() => oscillator.stop(), 200);
+  }, 100);
+}
+
+// Inicializar al cargar
+cargarStats();
+
+// Registrar Service Worker para PWA
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/validator/sw.js')
+    .then(() => console.log('Service Worker registrado'))
+    .catch(err => console.log('Error registrando SW:', err));
+}
