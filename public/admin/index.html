@@ -33,6 +33,7 @@
       <button class="tab-btn" data-tab="stats">📊 Estadísticas</button>
       <button class="tab-btn" data-tab="precios">💰 Precios</button>
       <button class="tab-btn" data-tab="usuarios">👥 Usuarios</button>
+      <button class="tab-btn" data-tab="roles">🔐 Roles</button>
     </div>
 
     <!-- TAB 1: Generar Boletos -->
@@ -445,6 +446,81 @@
       </div>
     </div>
 
+    <!-- TAB 6: Gestión de Roles -->
+    <div class="tab-content" id="tab-roles">
+      <div class="card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+          <h2>🔐 Gestión de Roles</h2>
+          <button class="btn btn-primary" onclick="abrirModalRol()">
+            ➕ Nuevo Rol
+          </button>
+        </div>
+
+        <div id="rolesContainer">
+          <div class="loading">
+            <div class="spinner"></div>
+            <p>Cargando roles...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Modal de crear/editar rol -->
+  <div id="rolModal" class="modal">
+    <div class="modal-content" style="max-width: 700px;">
+      <span class="modal-close" onclick="cerrarModalRol()">&times;</span>
+      <h2 id="rolModalTitle">Nuevo Rol</h2>
+
+      <form id="rolForm" onsubmit="guardarRol(event)">
+        <input type="hidden" id="rolId">
+
+        <div class="form-group">
+          <label for="rolNombre">Nombre del rol *</label>
+          <input type="text" id="rolNombre" required placeholder="Ej: operador_turno">
+          <small style="display: block; margin-top: 0.25rem; color: #64748b;">
+            Usa minúsculas y guiones bajos. Ej: gerente_finanzas
+          </small>
+        </div>
+
+        <div class="form-group">
+          <label for="rolDescripcion">Descripción</label>
+          <textarea id="rolDescripcion" rows="2" placeholder="Breve descripción del rol y sus responsabilidades"></textarea>
+        </div>
+
+        <div class="form-group">
+          <label for="rolNivelAcceso">Nivel de acceso *</label>
+          <select id="rolNivelAcceso" required>
+            <option value="">Seleccione nivel...</option>
+            <option value="1">Nivel 1 - Básico (solo lectura/validación)</option>
+            <option value="2">Nivel 2 - Operativo (crear, leer, actualizar)</option>
+            <option value="3">Nivel 3 - Administrador (acceso total)</option>
+          </select>
+          <small style="display: block; margin-top: 0.25rem; color: #64748b;">
+            El nivel determina el alcance de las acciones permitidas
+          </small>
+        </div>
+
+        <div class="form-group">
+          <label>Permisos del rol</label>
+          <div id="permisosContainer" style="max-height: 300px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 0.5rem; padding: 1rem; background: #f8fafc;">
+            <div class="loading">
+              <p style="text-align: center; color: #64748b;">Cargando permisos...</p>
+            </div>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 0.75rem; margin-top: 1.5rem;">
+          <button type="submit" class="btn btn-primary" style="flex: 1;">
+            💾 Guardar Rol
+          </button>
+          <button type="button" class="btn" onclick="cerrarModalRol()" style="flex: 1; background: #e2e8f0;">
+            Cancelar
+          </button>
+        </div>
+      </form>
+    </div>
   </div>
 
   <!-- Modal de crear/editar usuario -->

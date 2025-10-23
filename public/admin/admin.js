@@ -2254,37 +2254,50 @@ tabs.forEach(tab => {
   tab.addEventListener('click', async () => {
     const tabName = tab.dataset.tab;
     if (tabName === 'usuarios') {
-      await cargarRoles();
+      await cargarRolesParaUsuarios();
       await cargarUsuarios();
     }
   });
 });
 
-// Cargar lista de roles
-async function cargarRoles() {
+// Cargar lista de roles para usuarios
+async function cargarRolesParaUsuarios() {
   try {
+    console.log('🔄 Cargando roles para usuarios...');
     const response = await fetchAutenticado('/api/usuarios/roles/lista');
     const data = await response.json();
+
+    console.log('📦 Roles recibidos:', data);
 
     if (data.success) {
       rolesDisponibles = data.roles;
 
       // Llenar select de filtro
       const filtroRol = document.getElementById('filtroUsuarioRol');
-      filtroRol.innerHTML = '<option value="">Todos los roles</option>';
-      data.roles.forEach(rol => {
-        filtroRol.innerHTML += `<option value="${rol.id}">${rol.nombre}</option>`;
-      });
+      if (filtroRol) {
+        filtroRol.innerHTML = '<option value="">Todos los roles</option>';
+        data.roles.forEach(rol => {
+          filtroRol.innerHTML += `<option value="${rol.id}">${rol.nombre}</option>`;
+        });
+        console.log('✅ Filtro de roles llenado con', data.roles.length, 'roles');
+      }
 
       // Llenar select del modal
       const selectRol = document.getElementById('usuarioRol');
-      selectRol.innerHTML = '<option value="">Seleccione un rol...</option>';
-      data.roles.forEach(rol => {
-        selectRol.innerHTML += `<option value="${rol.id}">${rol.nombre}</option>`;
-      });
+      if (selectRol) {
+        selectRol.innerHTML = '<option value="">Seleccione un rol...</option>';
+        data.roles.forEach(rol => {
+          selectRol.innerHTML += `<option value="${rol.id}">${rol.nombre}</option>`;
+        });
+        console.log('✅ Select de roles llenado con', data.roles.length, 'roles');
+      } else {
+        console.error('❌ No se encontró el elemento usuarioRol');
+      }
+    } else {
+      console.error('❌ Error en la respuesta:', data);
     }
   } catch (error) {
-    console.error('Error cargando roles:', error);
+    console.error('❌ Error cargando roles para usuarios:', error);
   }
 }
 
@@ -2403,12 +2416,15 @@ async function cargarUsuarios() {
 }
 
 // Abrir modal para nuevo usuario
-function abrirModalUsuario(usuarioId = null) {
+async function abrirModalUsuario(usuarioId = null) {
   const modal = document.getElementById('usuarioModal');
   const title = document.getElementById('usuarioModalTitle');
   const form = document.getElementById('usuarioForm');
   const passwordGroup = document.getElementById('passwordGroup');
   const passwordInput = document.getElementById('usuarioPassword');
+
+  // Cargar roles antes de mostrar el modal
+  await cargarRolesParaUsuarios();
 
   form.reset();
   document.getElementById('usuarioId').value = '';
@@ -2728,4 +2744,308 @@ document.addEventListener('DOMContentLoaded', () => {
   if (cantidadInput) {
     cantidadInput.addEventListener('input', calcularMontoTotal);
   }
+});
+
+// ==================================================
+// GESTIÓN DE ROLES
+// ==================================================
+
+let rolesData = [];
+let permisosDisponibles = [];
+let rolEditando = null;
+
+// Cargar roles
+async function cargarRoles() {
+  try {
+    const container = document.getElementById('rolesContainer');
+    container.innerHTML = '<div class="loading"><div class="spinner"></div><p>Cargando roles...</p></div>';
+
+    const response = await fetchAutenticado('/api/roles');
+    const data = await response.json();
+
+    if (!data.success) {
+      throw new Error(data.error || 'Error al cargar roles');
+    }
+
+    rolesData = data.roles;
+    mostrarRoles(rolesData);
+
+  } catch (error) {
+    console.error('Error cargando roles:', error);
+    document.getElementById('rolesContainer').innerHTML = `
+      <div class="error-message">
+        ❌ Error al cargar roles: ${error.message}
+      </div>
+    `;
+  }
+}
+
+// Mostrar roles en la tabla
+function mostrarRoles(roles) {
+  const container = document.getElementById('rolesContainer');
+
+  if (!roles || roles.length === 0) {
+    container.innerHTML = '<p style="text-align: center; color: #64748b; padding: 2rem;">No hay roles registrados</p>';
+    return;
+  }
+
+  const html = `
+    <div class="table-container">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Nombre</th>
+            <th>Descripción</th>
+            <th>Nivel Acceso</th>
+            <th>Usuarios</th>
+            <th>Permisos</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${roles.map(rol => `
+            <tr>
+              <td>
+                <span class="badge" style="background: #3b82f6; color: white; padding: 0.25rem 0.75rem; border-radius: 0.5rem; font-family: monospace;">
+                  ${rol.nombre}
+                </span>
+              </td>
+              <td>${rol.descripcion || '<span style="color: #94a3b8;">Sin descripción</span>'}</td>
+              <td>
+                <span class="badge" style="background: ${getNivelColor(rol.nivel_acceso)}; color: white; padding: 0.25rem 0.75rem; border-radius: 0.5rem;">
+                  Nivel ${rol.nivel_acceso}
+                </span>
+              </td>
+              <td style="text-align: center;">
+                <span style="font-weight: 600; color: #2563eb;">${rol.total_usuarios || 0}</span>
+              </td>
+              <td style="text-align: center;">
+                <span style="font-weight: 600; color: #059669;">${rol.total_permisos || 0}</span>
+              </td>
+              <td>
+                <div style="display: flex; gap: 0.5rem; justify-content: center;">
+                  <button class="btn-icon" onclick="editarRol(${rol.id})" title="Editar rol">
+                    ✏️
+                  </button>
+                  <button class="btn-icon" onclick="eliminarRol(${rol.id}, '${rol.nombre}', ${rol.total_usuarios})" title="Eliminar rol" style="background: #ef4444;">
+                    🗑️
+                  </button>
+                </div>
+              </td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+
+  container.innerHTML = html;
+}
+
+// Obtener color según nivel
+function getNivelColor(nivel) {
+  switch(parseInt(nivel)) {
+    case 1: return '#64748b'; // Gris
+    case 2: return '#3b82f6'; // Azul
+    case 3: return '#ef4444'; // Rojo
+    default: return '#94a3b8';
+  }
+}
+
+// Abrir modal para crear/editar rol
+async function abrirModalRol(rolId = null) {
+  const modal = document.getElementById('rolModal');
+  const modalTitle = document.getElementById('rolModalTitle');
+  const form = document.getElementById('rolForm');
+
+  rolEditando = rolId;
+
+  // Cargar permisos disponibles
+  await cargarPermisosDisponibles();
+
+  if (rolId) {
+    // Modo edición
+    modalTitle.textContent = 'Editar Rol';
+    await cargarDatosRol(rolId);
+  } else {
+    // Modo creación
+    modalTitle.textContent = 'Nuevo Rol';
+    form.reset();
+    document.getElementById('rolId').value = '';
+    renderizarPermisos();
+  }
+
+  modal.style.display = 'flex';
+}
+
+// Cargar permisos disponibles
+async function cargarPermisosDisponibles() {
+  try {
+    const response = await fetchAutenticado('/api/roles/permisos/disponibles');
+    const data = await response.json();
+
+    if (data.success) {
+      permisosDisponibles = data.permisosPorModulo;
+    }
+  } catch (error) {
+    console.error('Error cargando permisos:', error);
+  }
+}
+
+// Renderizar permisos por módulo con checkboxes
+function renderizarPermisos(permisosSeleccionados = []) {
+  const container = document.getElementById('permisosContainer');
+
+  if (!permisosDisponibles || Object.keys(permisosDisponibles).length === 0) {
+    container.innerHTML = '<p style="text-align: center; color: #64748b;">No hay permisos disponibles</p>';
+    return;
+  }
+
+  const html = Object.entries(permisosDisponibles).map(([modulo, permisos]) => `
+    <div style="margin-bottom: 1rem;">
+      <h4 style="font-size: 0.875rem; font-weight: 700; color: #1e293b; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.5px;">
+        📦 ${modulo}
+      </h4>
+      <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 0.5rem; padding-left: 1rem;">
+        ${permisos.map(permiso => `
+          <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; padding: 0.5rem; border-radius: 0.25rem; transition: background 0.2s;"
+                 onmouseover="this.style.background='#e0f2fe'"
+                 onmouseout="this.style.background='transparent'">
+            <input type="checkbox"
+                   name="permisos"
+                   value="${permiso.id}"
+                   ${permisosSeleccionados.includes(permiso.id) ? 'checked' : ''}
+                   style="cursor: pointer;">
+            <span style="font-size: 0.875rem; color: #475569;" title="${permiso.descripcion || ''}">
+              ${permiso.nombre}
+            </span>
+          </label>
+        `).join('')}
+      </div>
+    </div>
+  `).join('');
+
+  container.innerHTML = html;
+}
+
+// Cargar datos del rol para editar
+async function cargarDatosRol(rolId) {
+  try {
+    const response = await fetchAutenticado(`/api/roles/${rolId}`);
+    const data = await response.json();
+
+    if (!data.success) {
+      throw new Error(data.error || 'Error al cargar rol');
+    }
+
+    document.getElementById('rolId').value = data.rol.id;
+    document.getElementById('rolNombre').value = data.rol.nombre;
+    document.getElementById('rolDescripcion').value = data.rol.descripcion || '';
+    document.getElementById('rolNivelAcceso').value = data.rol.nivel_acceso;
+
+    const permisosIds = data.permisos.map(p => p.id);
+    renderizarPermisos(permisosIds);
+
+  } catch (error) {
+    console.error('Error cargando datos del rol:', error);
+    alert('Error al cargar datos del rol: ' + error.message);
+    cerrarModalRol();
+  }
+}
+
+// Guardar rol (crear o actualizar)
+async function guardarRol(event) {
+  event.preventDefault();
+
+  const rolId = document.getElementById('rolId').value;
+  const nombre = document.getElementById('rolNombre').value.trim();
+  const descripcion = document.getElementById('rolDescripcion').value.trim();
+  const nivelAcceso = parseInt(document.getElementById('rolNivelAcceso').value);
+
+  // Obtener permisos seleccionados
+  const permisosCheckboxes = document.querySelectorAll('input[name="permisos"]:checked');
+  const permisos = Array.from(permisosCheckboxes).map(cb => parseInt(cb.value));
+
+  try {
+    const url = rolId ? `/api/roles/${rolId}` : '/api/roles';
+    const method = rolId ? 'PUT' : 'POST';
+
+    const response = await fetchAutenticado(url, {
+      method,
+      body: JSON.stringify({
+        nombre,
+        descripcion,
+        nivel_acceso: nivelAcceso,
+        permisos
+      })
+    });
+
+    const data = await response.json();
+
+    if (!data.success) {
+      throw new Error(data.error || 'Error al guardar rol');
+    }
+
+    alert(rolId ? '✅ Rol actualizado exitosamente' : '✅ Rol creado exitosamente');
+    cerrarModalRol();
+    cargarRoles();
+
+  } catch (error) {
+    console.error('Error guardando rol:', error);
+    alert('❌ Error al guardar rol: ' + error.message);
+  }
+}
+
+// Editar rol
+async function editarRol(rolId) {
+  await abrirModalRol(rolId);
+}
+
+// Eliminar rol
+async function eliminarRol(rolId, nombreRol, totalUsuarios) {
+  if (totalUsuarios > 0) {
+    alert(`❌ No se puede eliminar el rol "${nombreRol}" porque tiene ${totalUsuarios} usuario(s) asignado(s).\n\nPrimero debes reasignar los usuarios a otro rol.`);
+    return;
+  }
+
+  if (!confirm(`¿Estás seguro de eliminar el rol "${nombreRol}"?\n\nEsta acción no se puede deshacer.`)) {
+    return;
+  }
+
+  try {
+    const response = await fetchAutenticado(`/api/roles/${rolId}`, {
+      method: 'DELETE'
+    });
+
+    const data = await response.json();
+
+    if (!data.success) {
+      throw new Error(data.error || 'Error al eliminar rol');
+    }
+
+    alert('✅ Rol eliminado exitosamente');
+    cargarRoles();
+
+  } catch (error) {
+    console.error('Error eliminando rol:', error);
+    alert('❌ Error al eliminar rol: ' + error.message);
+  }
+}
+
+// Cerrar modal de rol
+function cerrarModalRol() {
+  const modal = document.getElementById('rolModal');
+  modal.style.display = 'none';
+  document.getElementById('rolForm').reset();
+  rolEditando = null;
+}
+
+// Cargar roles al abrir el tab
+tabs.forEach(tab => {
+  tab.addEventListener('click', async () => {
+    const tabName = tab.dataset.tab;
+    if (tabName === 'roles') {
+      await cargarRoles();
+    }
+  });
 });
