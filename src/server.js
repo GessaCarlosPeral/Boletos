@@ -44,6 +44,7 @@ app.use('/api/comedores', require('./routes/comedores'));
 app.use('/api/precios', require('./routes/precios'));
 app.use('/api/auditoria', require('./routes/auditoria'));
 app.use('/api/usuarios', require('./routes/usuarios'));
+app.use('/api/roles', require('./routes/roles'));
 
 // Rutas HTML (solo para páginas específicas sin extensión)
 app.get('/', (req, res) => {
