@@ -633,4 +633,52 @@ router.get('/autorizaciones/verificar/:loteId', requireAuth, requirePermission('
   }
 });
 
+// Obtener últimos movimientos para el validador (sin autenticación para que funcione en PWA)
+router.get('/ultimos-movimientos', async (req, res) => {
+  try {
+    const limite = parseInt(req.query.limite) || 10;
+
+    const sql = `
+      SELECT
+        h.id,
+        h.boleto_uuid,
+        h.lote_id,
+        h.tipo,
+        h.motivo_rechazo,
+        h.ubicacion,
+        h.foto_escaneo,
+        h.fecha,
+        b.contratista,
+        CASE
+          WHEN h.tipo = 'EXITOSO' THEN '✅'
+          WHEN h.tipo = 'RECHAZADO' THEN '❌'
+          ELSE '⚠️'
+        END as icono
+      FROM historial_escaneos h
+      LEFT JOIN boletos b ON h.boleto_uuid = b.uuid
+      ORDER BY h.fecha DESC
+      LIMIT ?
+    `;
+
+    db.all(sql, [limite], (err, rows) => {
+      if (err) {
+        console.error('Error obteniendo últimos movimientos:', err);
+        return res.status(500).json({ error: err.message });
+      }
+
+      res.json({
+        success: true,
+        movimientos: rows || []
+      });
+    });
+
+  } catch (error) {
+    console.error('Error obteniendo últimos movimientos:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 module.exports = router;
