@@ -5,7 +5,7 @@ const statsValidados = { count: 0 };
 const statsRechazados = { count: 0 };
 
 // Variables del DOM (se inicializan cuando el DOM esté listo)
-let video, canvas, ctx, startScanBtn, manualCodeInput, validateManualBtn, resultDiv, offlineIndicator, cameraInstructions;
+let video, canvas, ctx, startScanBtn, manualCodeInput, validateManualBtn, resultDiv, offlineIndicator, cameraInstructions, historialList;
 
 // Esperar a que el DOM esté completamente cargado
 document.addEventListener('DOMContentLoaded', () => {
@@ -24,11 +24,13 @@ function inicializarApp() {
   resultDiv = document.getElementById('result');
   offlineIndicator = document.getElementById('offlineIndicator');
   cameraInstructions = document.getElementById('cameraInstructions');
+  historialList = document.getElementById('historialList');
 
   console.log('✅ Elementos inicializados:', {
     video: !!video,
     canvas: !!canvas,
-    startScanBtn: !!startScanBtn
+    startScanBtn: !!startScanBtn,
+    historialList: !!historialList
   });
 
   // Event Listeners
@@ -74,6 +76,12 @@ function inicializarApp() {
 
   // Cargar estadísticas
   cargarStats();
+
+  // Cargar historial inicial
+  cargarHistorial();
+
+  // Actualizar historial cada 10 segundos
+  setInterval(cargarHistorial, 10000);
 
   console.log('✅ App inicializada completamente');
 }
@@ -297,6 +305,9 @@ async function validarBoleto(uuid) {
 
     actualizarStats();
 
+    // Recargar historial después de validar
+    setTimeout(() => cargarHistorial(), 500);
+
   } catch (error) {
     console.error('Error validando boleto:', error);
     mostrarResultado(
@@ -517,6 +528,63 @@ function playErrorSound() {
 
   } catch (e) {
     console.log('Audio no disponible');
+  }
+}
+
+// Cargar historial de movimientos
+async function cargarHistorial() {
+  if (!historialList) return;
+
+  try {
+    const response = await fetch('/api/boletos/ultimos-movimientos?limite=10');
+    const data = await response.json();
+
+    if (!data.success || !data.movimientos || data.movimientos.length === 0) {
+      historialList.innerHTML = '<div class="historial-empty">No hay movimientos registrados</div>';
+      return;
+    }
+
+    // Renderizar movimientos
+    historialList.innerHTML = data.movimientos.map(mov => {
+      const fecha = new Date(mov.fecha);
+      const horaFormateada = fecha.toLocaleTimeString('es-MX', {
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+      const fechaFormateada = fecha.toLocaleDateString('es-MX', {
+        day: '2-digit',
+        month: 'short'
+      });
+
+      const tipoClase = mov.tipo === 'EXITOSO' ? 'exitoso' : 'rechazado';
+      const contratista = mov.contratista || 'Sin datos';
+      const detalle = mov.tipo === 'EXITOSO'
+        ? mov.ubicacion || 'Acceso autorizado'
+        : mov.motivo_rechazo || 'Boleto rechazado';
+
+      // Mostrar los primeros 8 caracteres del UUID para identificación
+      const uuidCorto = mov.boleto_uuid ? mov.boleto_uuid.substring(0, 8) : 'N/A';
+
+      return `
+        <div class="historial-item ${tipoClase}">
+          <div class="historial-icono">${mov.icono}</div>
+          <div class="historial-info">
+            <div class="historial-contratista">${contratista}</div>
+            <div class="historial-detalle">${detalle}</div>
+            <div class="historial-detalle" style="color: #94a3b8; font-family: monospace;">🎫 ${uuidCorto}</div>
+          </div>
+          <div class="historial-fecha">
+            ${horaFormateada}<br>${fechaFormateada}
+          </div>
+        </div>
+      `;
+    }).join('');
+
+  } catch (error) {
+    console.error('Error cargando historial:', error);
+    if (historialList) {
+      historialList.innerHTML = '<div class="historial-empty">Error al cargar historial</div>';
+    }
   }
 }
 

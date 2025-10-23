@@ -204,6 +204,85 @@
       margin-top: 0.25rem;
     }
 
+    .historial-section {
+      background: rgba(255, 255, 255, 0.95);
+      border-radius: 1rem;
+      padding: 1rem;
+      margin-top: 1rem;
+    }
+
+    .historial-title {
+      font-size: 1.1rem;
+      font-weight: bold;
+      color: #2563eb;
+      margin-bottom: 0.75rem;
+      text-align: center;
+    }
+
+    .historial-list {
+      max-height: 400px;
+      overflow-y: auto;
+    }
+
+    .historial-item {
+      background: white;
+      border-radius: 0.5rem;
+      padding: 0.75rem;
+      margin-bottom: 0.5rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .historial-item.exitoso {
+      border-left: 4px solid #10b981;
+    }
+
+    .historial-item.rechazado {
+      border-left: 4px solid #ef4444;
+    }
+
+    .historial-icono {
+      font-size: 1.5rem;
+      flex-shrink: 0;
+    }
+
+    .historial-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .historial-contratista {
+      font-weight: 600;
+      color: #1e293b;
+      font-size: 0.875rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .historial-detalle {
+      font-size: 0.75rem;
+      color: #64748b;
+      margin-top: 0.125rem;
+    }
+
+    .historial-fecha {
+      font-size: 0.7rem;
+      color: #94a3b8;
+      text-align: right;
+      flex-shrink: 0;
+      white-space: nowrap;
+    }
+
+    .historial-empty {
+      text-align: center;
+      padding: 2rem;
+      color: #94a3b8;
+      font-size: 0.875rem;
+    }
+
     .loading {
       text-align: center;
       padding: 2rem;
@@ -324,9 +403,16 @@
         <div class="stat-label">Rechazados</div>
       </div>
     </div>
+
+    <div class="historial-section">
+      <div class="historial-title">📋 Últimos Movimientos</div>
+      <div class="historial-list" id="historialList">
+        <div class="historial-empty">Cargando historial...</div>
+      </div>
+    </div>
   </div>
 
   <script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js"></script>
-  <script src="/validator/validator.js?v=2"></script>
+  <script src="/validator/validator.js?v=3"></script>
 </body>
 </html>
