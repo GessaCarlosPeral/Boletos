@@ -2458,6 +2458,12 @@ async function cargarDatosUsuario(usuarioId) {
       document.getElementById('usuarioEmail').value = data.usuario.email;
       document.getElementById('usuarioRol').value = data.usuario.rol_id;
 
+      // Mostrar/ocultar selector de contratista y cargar valor si existe
+      await toggleContratistaSelector();
+      if (data.usuario.contratista_id) {
+        document.getElementById('usuarioContratista').value = data.usuario.contratista_id;
+      }
+
       // Deshabilitar username para usuarios existentes
       document.getElementById('usuarioUsername').disabled = true;
     }
@@ -2473,7 +2479,58 @@ function cerrarModalUsuario() {
   document.getElementById('usuarioModal').style.display = 'none';
   document.getElementById('usuarioForm').reset();
   document.getElementById('usuarioUsername').disabled = false;
+  document.getElementById('contratistaGroup').style.display = 'none';
   usuarioEditando = null;
+}
+
+// Toggle selector de contratista según el rol seleccionado
+async function toggleContratistaSelector() {
+  const rolSelect = document.getElementById('usuarioRol');
+  const contratistaGroup = document.getElementById('contratistaGroup');
+  const contratistaSelect = document.getElementById('usuarioContratista');
+
+  // Obtener el nombre del rol seleccionado
+  const rolId = rolSelect.value;
+  const rolTexto = rolSelect.options[rolSelect.selectedIndex]?.text.toLowerCase() || '';
+
+  // Mostrar selector de contratista solo si el rol es "contratista"
+  if (rolTexto.includes('contratista')) {
+    contratistaGroup.style.display = 'block';
+    contratistaSelect.required = true;
+
+    // Cargar contratistas si aún no están cargados
+    if (contratistaSelect.options.length <= 1) {
+      await cargarContratistasParaUsuario();
+    }
+  } else {
+    contratistaGroup.style.display = 'none';
+    contratistaSelect.required = false;
+    contratistaSelect.value = '';
+  }
+}
+
+// Cargar contratistas para el dropdown de usuarios
+async function cargarContratistasParaUsuario() {
+  try {
+    const response = await fetchAutenticado('/api/contratistas');
+    const data = await response.json();
+
+    const select = document.getElementById('usuarioContratista');
+    select.innerHTML = '<option value="">Seleccione un contratista...</option>';
+
+    if (data.success) {
+      data.contratistas
+        .filter(c => c.activo === 1)
+        .forEach(contratista => {
+          const option = document.createElement('option');
+          option.value = contratista.id;
+          option.textContent = `${contratista.nombre} (${contratista.codigo})`;
+          select.appendChild(option);
+        });
+    }
+  } catch (error) {
+    console.error('Error cargando contratistas:', error);
+  }
 }
 
 // Guardar usuario (crear o actualizar)
@@ -2486,9 +2543,17 @@ async function guardarUsuario(event) {
   const email = document.getElementById('usuarioEmail').value.trim();
   const rol_id = document.getElementById('usuarioRol').value;
   const password = document.getElementById('usuarioPassword').value;
+  const contratista_id = document.getElementById('usuarioContratista').value;
 
   if (!username || !nombre_completo || !email || !rol_id) {
     alert('Por favor complete todos los campos requeridos');
+    return;
+  }
+
+  // Validar que si el rol es contratista, se seleccione un contratista
+  const contratistaGroup = document.getElementById('contratistaGroup');
+  if (contratistaGroup.style.display !== 'none' && !contratista_id) {
+    alert('⚠️ Debe seleccionar un contratista para este usuario');
     return;
   }
 
@@ -2502,15 +2567,23 @@ async function guardarUsuario(event) {
 
     if (usuarioId) {
       // Actualizar usuario existente
+      const datos = { nombre_completo, email, rol_id };
+      if (contratista_id) {
+        datos.contratista_id = parseInt(contratista_id);
+      }
       response = await fetchAutenticado(`/api/usuarios/${usuarioId}`, {
         method: 'PUT',
-        body: JSON.stringify({ nombre_completo, email, rol_id })
+        body: JSON.stringify(datos)
       });
     } else {
       // Crear nuevo usuario
+      const datos = { username, password, nombre_completo, email, rol_id };
+      if (contratista_id) {
+        datos.contratista_id = parseInt(contratista_id);
+      }
       response = await fetchAutenticado('/api/usuarios', {
         method: 'POST',
-        body: JSON.stringify({ username, password, nombre_completo, email, rol_id })
+        body: JSON.stringify(datos)
       });
     }
 
@@ -2744,7 +2817,54 @@ document.addEventListener('DOMContentLoaded', () => {
   if (cantidadInput) {
     cantidadInput.addEventListener('input', calcularMontoTotal);
   }
+
+  // Desactivar fecha de vencimiento para usuarios con rol contratista
+  desactivarFechaVencimientoParaContratista();
 });
+
+// Función para desactivar fecha de vencimiento para usuarios contratista
+function desactivarFechaVencimientoParaContratista() {
+  try {
+    const userStr = localStorage.getItem('auth_user');
+    if (!userStr) return;
+
+    const user = JSON.parse(userStr);
+    const fechaVencimientoInput = document.getElementById('fechaVencimiento');
+
+    if (!fechaVencimientoInput) return;
+
+    // Verificar si el usuario tiene rol contratista (nivel_acceso = 1 o nombre del rol)
+    const esContratista = user.rol && user.rol.toLowerCase() === 'contratista';
+
+    if (esContratista) {
+      // Desactivar el campo
+      fechaVencimientoInput.disabled = true;
+      fechaVencimientoInput.style.backgroundColor = '#f0f0f0';
+      fechaVencimientoInput.style.cursor = 'not-allowed';
+
+      // Establecer fecha por defecto (3 meses desde hoy)
+      const fechaDefecto = new Date();
+      fechaDefecto.setMonth(fechaDefecto.getMonth() + 3);
+      const fechaFormateada = fechaDefecto.toISOString().split('T')[0];
+      fechaVencimientoInput.value = fechaFormateada;
+
+      // Agregar tooltip informativo
+      fechaVencimientoInput.title = 'Fecha de vencimiento automática (3 meses). No modificable para usuarios contratista.';
+
+      // Desactivar botones de fecha rápida también
+      const quickDateBtns = document.querySelectorAll('.quick-date-btn');
+      quickDateBtns.forEach(btn => {
+        btn.disabled = true;
+        btn.style.opacity = '0.5';
+        btn.style.cursor = 'not-allowed';
+      });
+
+      console.log('Fecha de vencimiento desactivada para usuario contratista');
+    }
+  } catch (error) {
+    console.error('Error al desactivar fecha de vencimiento:', error);
+  }
+}
 
 // ==================================================
 // GESTIÓN DE ROLES
@@ -3046,6 +3166,763 @@ tabs.forEach(tab => {
     const tabName = tab.dataset.tab;
     if (tabName === 'roles') {
       await cargarRoles();
+    } else if (tabName === 'contratistas') {
+      await cargarContratistas();
+    } else if (tabName === 'comedores') {
+      await cargarTodosComedores();
     }
   });
 });
+
+// ==================== GESTIÓN DE CONTRATISTAS ====================
+
+let contratistaEditando = null;
+
+// Cargar contratistas
+async function cargarContratistas() {
+  try {
+    console.log('🔄 Cargando contratistas...');
+    const response = await fetchAutenticado('/api/contratistas');
+    const data = await response.json();
+
+    console.log('📦 Contratistas recibidos:', data);
+
+    if (data.success) {
+      mostrarContratistas(data.contratistas);
+    } else {
+      throw new Error(data.error || 'Error al cargar contratistas');
+    }
+  } catch (error) {
+    console.error('❌ Error cargando contratistas:', error);
+    document.getElementById('contratistasContainer').innerHTML = `
+      <div class="error-message">
+        <p>❌ Error al cargar contratistas: ${error.message}</p>
+        <button onclick="cargarContratistas()" class="btn btn-primary">🔄 Reintentar</button>
+      </div>
+    `;
+  }
+}
+
+// Mostrar contratistas en la tabla
+function mostrarContratistas(contratistas) {
+  console.log('📋 Mostrando', contratistas.length, 'contratistas');
+
+  const container = document.getElementById('contratistasContainer');
+
+  if (contratistas.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state">
+        <p>📋 No hay contratistas registrados</p>
+        <button onclick="abrirModalContratista()" class="btn btn-primary">
+          ➕ Crear Primer Contratista
+        </button>
+      </div>
+    `;
+    return;
+  }
+
+  let html = `
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+      <h3>📋 Contratistas Registrados (${contratistas.length})</h3>
+      <button onclick="abrirModalContratista()" class="btn btn-primary">
+        ➕ Nuevo Contratista
+      </button>
+    </div>
+
+    <div style="overflow-x: auto;">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Nombre</th>
+            <th>Código</th>
+            <th>Comedores</th>
+            <th>Lotes</th>
+            <th>Estado</th>
+            <th>Fecha Creación</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+  `;
+
+  contratistas.forEach(contratista => {
+    const estadoTexto = contratista.activo === 1 ? '✅ Activo' : '❌ Inactivo';
+    const estadoClase = contratista.activo === 1 ? 'success' : 'danger';
+    const fecha = new Date(contratista.fecha_creacion).toLocaleDateString('es-MX');
+
+    html += `
+      <tr>
+        <td style="font-weight: 600;">${contratista.nombre}</td>
+        <td><span class="badge" style="background: #3b82f6;">${contratista.codigo || 'N/A'}</span></td>
+        <td style="text-align: center;">
+          ${contratista.total_comedores > 0
+            ? `<span class="badge" style="background: #10b981;">${contratista.total_comedores}</span>`
+            : '<span style="color: #94a3b8;">0</span>'}
+        </td>
+        <td style="text-align: center;">
+          ${contratista.total_lotes > 0
+            ? `<span class="badge" style="background: #8b5cf6;">${contratista.total_lotes}</span>`
+            : '<span style="color: #94a3b8;">0</span>'}
+        </td>
+        <td>
+          <span class="badge badge-${estadoClase}">${estadoTexto}</span>
+        </td>
+        <td style="color: #64748b;">${fecha}</td>
+        <td>
+          <div style="display: flex; gap: 0.5rem;">
+            <button onclick="verComedoresContratista(${contratista.id}, '${contratista.nombre}')"
+                    class="btn btn-sm"
+                    style="background: #10b981; color: white;"
+                    title="Ver comedores">
+              🍽️
+            </button>
+            <button onclick="editarContratista(${contratista.id})"
+                    class="btn btn-sm"
+                    style="background: #3b82f6; color: white;"
+                    title="Editar">
+              ✏️
+            </button>
+            <button onclick="toggleContratista(${contratista.id}, ${contratista.activo})"
+                    class="btn btn-sm"
+                    style="background: #f59e0b; color: white;"
+                    title="${contratista.activo === 1 ? 'Desactivar' : 'Activar'}">
+              ${contratista.activo === 1 ? '⏸️' : '▶️'}
+            </button>
+            <button onclick="eliminarContratista(${contratista.id}, '${contratista.nombre}')"
+                    class="btn btn-sm"
+                    style="background: #ef4444; color: white;"
+                    title="Eliminar">
+              🗑️
+            </button>
+          </div>
+        </td>
+      </tr>
+    `;
+  });
+
+  html += `
+        </tbody>
+      </table>
+    </div>
+  `;
+
+  container.innerHTML = html;
+}
+
+// Abrir modal de contratista
+async function abrirModalContratista(contratistaId = null) {
+  contratistaEditando = contratistaId;
+  const modal = document.getElementById('contratistaModal');
+  const title = document.getElementById('contratistaModalTitle');
+  const form = document.getElementById('contratistaForm');
+
+  form.reset();
+  document.getElementById('contratistaId').value = '';
+
+  if (contratistaId) {
+    title.textContent = 'Editar Contratista';
+
+    try {
+      const response = await fetchAutenticado(`/api/contratistas/${contratistaId}`);
+      const data = await response.json();
+
+      if (data.success) {
+        document.getElementById('contratistaId').value = data.contratista.id;
+        document.getElementById('contratistaNombre').value = data.contratista.nombre;
+        document.getElementById('contratistaCodigo').value = data.contratista.codigo || '';
+      } else {
+        throw new Error(data.error);
+      }
+    } catch (error) {
+      console.error('Error cargando contratista:', error);
+      alert('❌ Error al cargar datos del contratista');
+      return;
+    }
+  } else {
+    title.textContent = 'Nuevo Contratista';
+  }
+
+  modal.style.display = 'block';
+}
+
+// Guardar contratista
+async function guardarContratista(event) {
+  event.preventDefault();
+
+  const id = document.getElementById('contratistaId').value;
+  const nombre = document.getElementById('contratistaNombre').value.trim();
+  const codigo = document.getElementById('contratistaCodigo').value.trim();
+
+  if (!nombre) {
+    alert('⚠️ El nombre del contratista es requerido');
+    return;
+  }
+
+  try {
+    const datos = { nombre };
+    if (codigo) {
+      datos.codigo = codigo;
+    }
+
+    let response;
+    if (id) {
+      // Actualizar
+      response = await fetchAutenticado(`/api/contratistas/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(datos)
+      });
+    } else {
+      // Crear
+      response = await fetchAutenticado('/api/contratistas', {
+        method: 'POST',
+        body: JSON.stringify(datos)
+      });
+    }
+
+    const data = await response.json();
+
+    if (data.success) {
+      alert(`✅ ${data.message}`);
+      cerrarModalContratista();
+      await cargarContratistas();
+      // Actualizar también el dropdown de generar boletos
+      await cargarContratistasGeneracion();
+    } else {
+      throw new Error(data.error);
+    }
+  } catch (error) {
+    console.error('Error guardando contratista:', error);
+    alert('❌ Error al guardar contratista: ' + error.message);
+  }
+}
+
+// Editar contratista
+async function editarContratista(id) {
+  await abrirModalContratista(id);
+}
+
+// Toggle activar/desactivar contratista
+async function toggleContratista(id, activoActual) {
+  const accion = activoActual === 1 ? 'desactivar' : 'activar';
+
+  if (!confirm(`¿Estás seguro de ${accion} este contratista?`)) {
+    return;
+  }
+
+  try {
+    const response = await fetchAutenticado(`/api/contratistas/${id}/toggle`, {
+      method: 'PATCH'
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      alert(`✅ ${data.message}`);
+      await cargarContratistas();
+      // Actualizar también el dropdown de generar boletos
+      await cargarContratistasGeneracion();
+    } else {
+      throw new Error(data.error);
+    }
+  } catch (error) {
+    console.error('Error toggling contratista:', error);
+    alert('❌ Error: ' + error.message);
+  }
+}
+
+// Eliminar contratista
+async function eliminarContratista(id, nombre) {
+  if (!confirm(`⚠️ ¿Estás seguro de eliminar el contratista "${nombre}"?\n\nEsta acción no se puede deshacer y solo se permite si no tiene comedores ni lotes asociados.`)) {
+    return;
+  }
+
+  try {
+    const response = await fetchAutenticado(`/api/contratistas/${id}`, {
+      method: 'DELETE'
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      alert(`✅ ${data.message}`);
+      await cargarContratistas();
+      // Actualizar también el dropdown de generar boletos
+      await cargarContratistasGeneracion();
+    } else {
+      throw new Error(data.error);
+    }
+  } catch (error) {
+    console.error('Error eliminando contratista:', error);
+    alert('❌ Error al eliminar contratista: ' + error.message);
+  }
+}
+
+// Cerrar modal de contratista
+function cerrarModalContratista() {
+  const modal = document.getElementById('contratistaModal');
+  modal.style.display = 'none';
+  document.getElementById('contratistaForm').reset();
+  contratistaEditando = null;
+}
+
+// ==================== GESTIÓN DE COMEDORES ====================
+
+let comedorEditando = null;
+let contratistaActual = null;
+
+// Ver comedores de un contratista
+async function verComedoresContratista(contratistaId, nombreContratista) {
+  contratistaActual = contratistaId;
+
+  try {
+    const response = await fetchAutenticado(`/api/contratistas/${contratistaId}`);
+    const data = await response.json();
+
+    if (data.success) {
+      mostrarComedoresEnModal(data.comedores, nombreContratista, contratistaId);
+    } else {
+      throw new Error(data.error);
+    }
+  } catch (error) {
+    console.error('Error cargando comedores:', error);
+    alert('❌ Error al cargar comedores: ' + error.message);
+  }
+}
+
+// Mostrar comedores en un modal o sección
+function mostrarComedoresEnModal(comedores, nombreContratista, contratistaId) {
+  const container = document.getElementById('contratistasContainer');
+
+  let html = `
+    <div>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+        <div>
+          <button onclick="cargarContratistas()" class="btn" style="background: #64748b; color: white; margin-bottom: 0.5rem;">
+            ← Volver a Contratistas
+          </button>
+          <h3>🍽️ Comedores de ${nombreContratista}</h3>
+        </div>
+        <button onclick="abrirModalComedorParaContratista(${contratistaId}, '${nombreContratista}')" class="btn btn-primary">
+          ➕ Nuevo Comedor
+        </button>
+      </div>
+  `;
+
+  if (comedores.length === 0) {
+    html += `
+      <div class="empty-state">
+        <p>📋 No hay comedores registrados para este contratista</p>
+        <button onclick="abrirModalComedorParaContratista(${contratistaId}, '${nombreContratista}')" class="btn btn-primary">
+          ➕ Crear Primer Comedor
+        </button>
+      </div>
+    `;
+  } else {
+    html += `
+      <div style="overflow-x: auto;">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Nombre</th>
+              <th>Ubicación</th>
+              <th>Código</th>
+              <th>Estado</th>
+              <th>Fecha Creación</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+    `;
+
+    comedores.forEach(comedor => {
+      const estadoTexto = comedor.activo === 1 ? '✅ Activo' : '❌ Inactivo';
+      const estadoClase = comedor.activo === 1 ? 'success' : 'danger';
+      const fecha = new Date(comedor.fecha_creacion).toLocaleDateString('es-MX');
+
+      html += `
+        <tr>
+          <td style="font-weight: 600;">${comedor.nombre}</td>
+          <td style="color: #64748b;">${comedor.ubicacion || '<em>Sin ubicación</em>'}</td>
+          <td>${comedor.codigo ? `<span class="badge" style="background: #3b82f6;">${comedor.codigo}</span>` : '<span style="color: #94a3b8;">N/A</span>'}</td>
+          <td>
+            <span class="badge badge-${estadoClase}">${estadoTexto}</span>
+          </td>
+          <td style="color: #64748b;">${fecha}</td>
+          <td>
+            <div style="display: flex; gap: 0.5rem;">
+              <button onclick="editarComedor(${comedor.id})"
+                      class="btn btn-sm"
+                      style="background: #3b82f6; color: white;"
+                      title="Editar">
+                ✏️
+              </button>
+              <button onclick="eliminarComedor(${comedor.id}, '${comedor.nombre}')"
+                      class="btn btn-sm"
+                      style="background: #ef4444; color: white;"
+                      title="Eliminar">
+                🗑️
+              </button>
+            </div>
+          </td>
+        </tr>
+      `;
+    });
+
+    html += `
+          </tbody>
+        </table>
+      </div>
+    `;
+  }
+
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+// Abrir modal de comedor para un contratista específico
+async function abrirModalComedorParaContratista(contratistaId, nombreContratista) {
+  await abrirModalComedor(null, contratistaId);
+}
+
+// Abrir modal de comedor
+async function abrirModalComedor(comedorId = null, contratistaIdPreseleccionado = null) {
+  comedorEditando = comedorId;
+  const modal = document.getElementById('comedorModal');
+  const title = document.getElementById('comedorModalTitle');
+  const form = document.getElementById('comedorForm');
+
+  form.reset();
+  document.getElementById('comedorId').value = '';
+
+  // Cargar lista de contratistas
+  await cargarContratistasParaComedor();
+
+  if (comedorId) {
+    title.textContent = 'Editar Comedor';
+
+    try {
+      const response = await fetchAutenticado(`/api/comedores/${comedorId}`);
+      const data = await response.json();
+
+      if (data) {
+        document.getElementById('comedorId').value = data.id;
+        document.getElementById('comedorNombre').value = data.nombre;
+        document.getElementById('comedorUbicacion').value = data.ubicacion || '';
+        document.getElementById('comedorCodigo').value = data.codigo || '';
+        document.getElementById('comedorContratista').value = data.contratista_id;
+      } else {
+        throw new Error('Comedor no encontrado');
+      }
+    } catch (error) {
+      console.error('Error cargando comedor:', error);
+      alert('❌ Error al cargar datos del comedor');
+      return;
+    }
+  } else {
+    title.textContent = 'Nuevo Comedor';
+    if (contratistaIdPreseleccionado) {
+      document.getElementById('comedorContratista').value = contratistaIdPreseleccionado;
+    }
+  }
+
+  modal.style.display = 'block';
+}
+
+// Cargar contratistas para el dropdown de comedores
+async function cargarContratistasParaComedor() {
+  try {
+    const response = await fetchAutenticado('/api/contratistas');
+    const data = await response.json();
+
+    const select = document.getElementById('comedorContratista');
+    select.innerHTML = '<option value="">Seleccione contratista...</option>';
+
+    if (data.success) {
+      data.contratistas
+        .filter(c => c.activo === 1)
+        .forEach(contratista => {
+          const option = document.createElement('option');
+          option.value = contratista.id;
+          option.textContent = contratista.nombre;
+          select.appendChild(option);
+        });
+    }
+  } catch (error) {
+    console.error('Error cargando contratistas:', error);
+  }
+}
+
+// Guardar comedor
+async function guardarComedor(event) {
+  event.preventDefault();
+
+  const id = document.getElementById('comedorId').value;
+  const nombre = document.getElementById('comedorNombre').value.trim();
+  const ubicacion = document.getElementById('comedorUbicacion').value.trim();
+  const codigo = document.getElementById('comedorCodigo').value.trim();
+  const contratistaId = document.getElementById('comedorContratista').value;
+
+  if (!nombre) {
+    alert('⚠️ El nombre del comedor es requerido');
+    return;
+  }
+
+  if (!contratistaId && !id) {
+    alert('⚠️ Debe seleccionar un contratista');
+    return;
+  }
+
+  try {
+    // Primero obtener el nombre del contratista
+    const contratistaResponse = await fetchAutenticado(`/api/contratistas/${contratistaId || contratistaActual}`);
+    const contratistaData = await contratistaResponse.json();
+    const nombreContratista = contratistaData.success ? contratistaData.contratista.nombre : '';
+
+    const datos = {
+      nombre,
+      nombreContratista,
+      ubicacion: ubicacion || null,
+      codigo: codigo || null
+    };
+
+    let response;
+    if (id) {
+      // Actualizar
+      response = await fetchAutenticado(`/api/comedores/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(datos)
+      });
+    } else {
+      // Crear
+      response = await fetchAutenticado('/api/comedores', {
+        method: 'POST',
+        body: JSON.stringify(datos)
+      });
+    }
+
+    const data = await response.json();
+
+    if (data.exito) {
+      alert(`✅ Comedor guardado exitosamente`);
+      cerrarModalComedor();
+
+      // Recargar la vista correcta según dónde estemos
+      const tabComedoresActivo = document.getElementById('tab-comedores').classList.contains('active');
+
+      if (tabComedoresActivo) {
+        // Si estamos en el tab de comedores, recargar esa vista
+        await cargarTodosComedores();
+      } else if (contratistaActual) {
+        // Si estamos viendo comedores de un contratista específico
+        const contratistaResp = await fetchAutenticado(`/api/contratistas/${contratistaActual}`);
+        const contratistaInfo = await contratistaResp.json();
+        if (contratistaInfo.success) {
+          verComedoresContratista(contratistaActual, contratistaInfo.contratista.nombre);
+        }
+      }
+    } else {
+      throw new Error(data.error);
+    }
+  } catch (error) {
+    console.error('Error guardando comedor:', error);
+    alert('❌ Error al guardar comedor: ' + error.message);
+  }
+}
+
+// Editar comedor
+async function editarComedor(id) {
+  await abrirModalComedor(id);
+}
+
+// Eliminar comedor
+async function eliminarComedor(id, nombre) {
+  if (!confirm(`⚠️ ¿Estás seguro de eliminar el comedor "${nombre}"?\n\nEsta acción no se puede deshacer.`)) {
+    return;
+  }
+
+  try {
+    const response = await fetchAutenticado(`/api/comedores/${id}`, {
+      method: 'DELETE'
+    });
+
+    const data = await response.json();
+
+    if (data.exito) {
+      alert(`✅ ${data.mensaje}`);
+      // Recargar la vista de comedores si estamos viendo un contratista
+      if (contratistaActual) {
+        const contratistaResp = await fetchAutenticado(`/api/contratistas/${contratistaActual}`);
+        const contratistaInfo = await contratistaResp.json();
+        if (contratistaInfo.success) {
+          verComedoresContratista(contratistaActual, contratistaInfo.contratista.nombre);
+        }
+      }
+    } else {
+      throw new Error(data.error);
+    }
+  } catch (error) {
+    console.error('Error eliminando comedor:', error);
+    alert('❌ Error al eliminar comedor: ' + error.message);
+  }
+}
+
+// Cerrar modal de comedor
+function cerrarModalComedor() {
+  const modal = document.getElementById('comedorModal');
+  modal.style.display = 'none';
+  document.getElementById('comedorForm').reset();
+  comedorEditando = null;
+}
+
+// ==================== VISTA GLOBAL DE COMEDORES ====================
+
+// Cargar todos los comedores
+async function cargarTodosComedores() {
+  try {
+    console.log('🔄 Cargando todos los comedores...');
+    const response = await fetchAutenticado('/api/comedores');
+    const data = await response.json();
+
+    console.log('📦 Comedores recibidos:', data);
+
+    if (Array.isArray(data)) {
+      mostrarTodosComedores(data);
+    } else {
+      throw new Error('Error al cargar comedores');
+    }
+  } catch (error) {
+    console.error('❌ Error cargando comedores:', error);
+    document.getElementById('comedoresContainer').innerHTML = `
+      <div class="error-message">
+        <p>❌ Error al cargar comedores: ${error.message}</p>
+        <button onclick="cargarTodosComedores()" class="btn btn-primary">🔄 Reintentar</button>
+      </div>
+    `;
+  }
+}
+
+// Mostrar todos los comedores en una tabla
+function mostrarTodosComedores(comedores) {
+  console.log('📋 Mostrando', comedores.length, 'comedores');
+
+  const container = document.getElementById('comedoresContainer');
+
+  if (comedores.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state">
+        <p>📋 No hay comedores registrados</p>
+        <button onclick="abrirModalComedor()" class="btn btn-primary">
+          ➕ Crear Primer Comedor
+        </button>
+      </div>
+    `;
+    return;
+  }
+
+  let html = `
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+      <h3>📋 Comedores Registrados (${comedores.length})</h3>
+      <button onclick="abrirModalComedor()" class="btn btn-primary">
+        ➕ Nuevo Comedor
+      </button>
+    </div>
+
+    <div style="overflow-x: auto;">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Contratista</th>
+            <th>Nombre del Comedor</th>
+            <th>Ubicación</th>
+            <th>Código</th>
+            <th>Estado</th>
+            <th>Fecha Creación</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+  `;
+
+  comedores.forEach(comedor => {
+    const estadoTexto = comedor.activo === 1 ? '✅ Activo' : '❌ Inactivo';
+    const estadoClase = comedor.activo === 1 ? 'success' : 'danger';
+    const fecha = new Date(comedor.fecha_creacion).toLocaleDateString('es-MX');
+
+    html += `
+      <tr>
+        <td>
+          <span class="badge" style="background: #3b82f6; font-weight: 600;">
+            ${comedor.contratista_nombre || 'Sin contratista'}
+          </span>
+        </td>
+        <td style="font-weight: 600;">${comedor.nombre}</td>
+        <td style="color: #64748b;">
+          ${comedor.ubicacion || '<em style="color: #cbd5e1;">Sin ubicación</em>'}
+        </td>
+        <td>
+          ${comedor.codigo
+            ? `<span class="badge" style="background: #8b5cf6;">${comedor.codigo}</span>`
+            : '<span style="color: #94a3b8;">N/A</span>'}
+        </td>
+        <td>
+          <span class="badge badge-${estadoClase}">${estadoTexto}</span>
+        </td>
+        <td style="color: #64748b;">${fecha}</td>
+        <td>
+          <div style="display: flex; gap: 0.5rem;">
+            <button onclick="editarComedorGlobal(${comedor.id})"
+                    class="btn btn-sm"
+                    style="background: #3b82f6; color: white;"
+                    title="Editar">
+              ✏️
+            </button>
+            <button onclick="eliminarComedorGlobal(${comedor.id}, '${comedor.nombre}')"
+                    class="btn btn-sm"
+                    style="background: #ef4444; color: white;"
+                    title="Eliminar">
+              🗑️
+            </button>
+          </div>
+        </td>
+      </tr>
+    `;
+  });
+
+  html += `
+        </tbody>
+      </table>
+    </div>
+  `;
+
+  container.innerHTML = html;
+}
+
+// Editar comedor desde vista global
+async function editarComedorGlobal(id) {
+  await abrirModalComedor(id);
+}
+
+// Eliminar comedor desde vista global
+async function eliminarComedorGlobal(id, nombre) {
+  if (!confirm(`⚠️ ¿Estás seguro de eliminar el comedor "${nombre}"?\n\nEsta acción no se puede deshacer.`)) {
+    return;
+  }
+
+  try {
+    const response = await fetchAutenticado(`/api/comedores/${id}`, {
+      method: 'DELETE'
+    });
+
+    const data = await response.json();
+
+    if (data.exito) {
+      alert(`✅ ${data.mensaje}`);
+      await cargarTodosComedores();
+    } else {
+      throw new Error(data.error);
+    }
+  } catch (error) {
+    console.error('Error eliminando comedor:', error);
+    alert('❌ Error al eliminar comedor: ' + error.message);
+  }
+}

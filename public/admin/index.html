@@ -31,6 +31,8 @@
       <button class="tab-btn active" data-tab="generar">📝 Generar Boletos</button>
       <button class="tab-btn" data-tab="lotes">📦 Ver Lotes</button>
       <button class="tab-btn" data-tab="stats">📊 Estadísticas</button>
+      <button class="tab-btn" data-tab="contratistas">🏢 Contratistas</button>
+      <button class="tab-btn" data-tab="comedores">🍽️ Comedores</button>
       <button class="tab-btn" data-tab="precios">💰 Precios</button>
       <button class="tab-btn" data-tab="usuarios">👥 Usuarios</button>
       <button class="tab-btn" data-tab="roles">🔐 Roles</button>
@@ -272,7 +274,31 @@
       </div>
     </div>
 
-    <!-- TAB 4: Precios -->
+    <!-- TAB 4: Gestión de Contratistas -->
+    <div class="tab-content" id="tab-contratistas">
+      <div class="card">
+        <div id="contratistasContainer">
+          <div class="loading">
+            <div class="spinner"></div>
+            <p>Cargando contratistas...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 5: Gestión de Comedores -->
+    <div class="tab-content" id="tab-comedores">
+      <div class="card">
+        <div id="comedoresContainer">
+          <div class="loading">
+            <div class="spinner"></div>
+            <p>Cargando comedores...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 6: Precios -->
     <div class="tab-content" id="tab-precios">
       <div class="card">
         <h2>💰 Configuración de Precios</h2>
@@ -549,9 +575,19 @@
 
         <div class="form-group">
           <label for="usuarioRol">Rol *</label>
-          <select id="usuarioRol" required>
+          <select id="usuarioRol" required onchange="toggleContratistaSelector()">
             <option value="">Seleccione un rol...</option>
           </select>
+        </div>
+
+        <div class="form-group" id="contratistaGroup" style="display: none;">
+          <label for="usuarioContratista">Contratista *</label>
+          <select id="usuarioContratista">
+            <option value="">Seleccione un contratista...</option>
+          </select>
+          <small style="display: block; margin-top: 0.25rem; color: #64748b;">
+            Seleccione a qué contratista pertenece este usuario
+          </small>
         </div>
 
         <div class="form-group" id="passwordGroup">
@@ -586,6 +622,96 @@
           <p>Cargando actividad...</p>
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- Modal de crear/editar contratista -->
+  <div id="contratistaModal" class="modal">
+    <div class="modal-content">
+      <span class="modal-close" onclick="cerrarModalContratista()">&times;</span>
+      <h2 id="contratistaModalTitle">Nuevo Contratista</h2>
+
+      <form id="contratistaForm" onsubmit="guardarContratista(event)">
+        <input type="hidden" id="contratistaId">
+
+        <div class="form-group">
+          <label for="contratistaNombre">Nombre del contratista *</label>
+          <input type="text" id="contratistaNombre" required placeholder="Ej: PEMEX División Sur" maxlength="100">
+          <small style="display: block; margin-top: 0.25rem; color: #64748b;">
+            Nombre completo de la empresa o contratista
+          </small>
+        </div>
+
+        <div class="form-group">
+          <label for="contratistaCodigo">Código (opcional)</label>
+          <input type="text" id="contratistaCodigo" placeholder="Se genera automáticamente" maxlength="10">
+          <small style="display: block; margin-top: 0.25rem; color: #64748b;">
+            Si no se especifica, se genera automáticamente del nombre
+          </small>
+        </div>
+
+        <div style="display: flex; gap: 0.75rem; margin-top: 1.5rem;">
+          <button type="submit" class="btn btn-primary" style="flex: 1;">
+            💾 Guardar Contratista
+          </button>
+          <button type="button" class="btn" onclick="cerrarModalContratista()" style="flex: 1; background: #e2e8f0;">
+            Cancelar
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal de crear/editar comedor -->
+  <div id="comedorModal" class="modal">
+    <div class="modal-content">
+      <span class="modal-close" onclick="cerrarModalComedor()">&times;</span>
+      <h2 id="comedorModalTitle">Nuevo Comedor</h2>
+
+      <form id="comedorForm" onsubmit="guardarComedor(event)">
+        <input type="hidden" id="comedorId">
+        <input type="hidden" id="comedorContratistaId">
+
+        <div class="form-group">
+          <label for="comedorContratista">Contratista *</label>
+          <select id="comedorContratista" required>
+            <option value="">Seleccione contratista...</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="comedorNombre">Nombre del comedor *</label>
+          <input type="text" id="comedorNombre" required placeholder="Ej: Comedor Central" maxlength="100">
+          <small style="display: block; margin-top: 0.25rem; color: #64748b;">
+            Nombre que identifica al comedor
+          </small>
+        </div>
+
+        <div class="form-group">
+          <label for="comedorUbicacion">Ubicación (opcional)</label>
+          <input type="text" id="comedorUbicacion" placeholder="Ej: Plataforma A, Edificio 3" maxlength="100">
+          <small style="display: block; margin-top: 0.25rem; color: #64748b;">
+            Dirección o ubicación física del comedor
+          </small>
+        </div>
+
+        <div class="form-group">
+          <label for="comedorCodigo">Código (opcional)</label>
+          <input type="text" id="comedorCodigo" placeholder="Ej: COM-001" maxlength="20">
+          <small style="display: block; margin-top: 0.25rem; color: #64748b;">
+            Código alfanumérico único para el comedor
+          </small>
+        </div>
+
+        <div style="display: flex; gap: 0.75rem; margin-top: 1.5rem;">
+          <button type="submit" class="btn btn-primary" style="flex: 1;">
+            💾 Guardar Comedor
+          </button>
+          <button type="button" class="btn" onclick="cerrarModalComedor()" style="flex: 1; background: #e2e8f0;">
+            Cancelar
+          </button>
+        </div>
+      </form>
     </div>
   </div>
 
