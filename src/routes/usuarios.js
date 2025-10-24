@@ -113,7 +113,7 @@ router.get('/:id', requireAuth, requirePermission('usuarios.leer'), async (req, 
  */
 router.post('/', requireAuth, requirePermission('usuarios.crear'), auditUsuario('CREATE'), async (req, res) => {
   try {
-    const { username, password, nombre_completo, email, rol_id } = req.body;
+    const { username, password, nombre_completo, email, rol_id, contratista_id } = req.body;
 
     // Validar datos requeridos
     if (!username || !password || !nombre_completo || !email || !rol_id) {
@@ -141,14 +141,21 @@ router.post('/', requireAuth, requirePermission('usuarios.crear'), auditUsuario(
     }
 
     // Crear usuario
-    const userId = await createUser({
+    const datosUsuario = {
       username,
       password,
       nombre_completo,
       email,
       rol_id: parseInt(rol_id),
       creado_por: req.user.id
-    });
+    };
+
+    // Agregar contratista_id solo si se proporciona
+    if (contratista_id) {
+      datosUsuario.contratista_id = parseInt(contratista_id);
+    }
+
+    const userId = await createUser(datosUsuario);
 
     res.json({
       success: true,
@@ -189,7 +196,7 @@ router.post('/', requireAuth, requirePermission('usuarios.crear'), auditUsuario(
 router.put('/:id', requireAuth, requirePermission('usuarios.editar'), auditUsuario('UPDATE'), async (req, res) => {
   try {
     const { id } = req.params;
-    const { nombre_completo, email, rol_id, activo } = req.body;
+    const { nombre_completo, email, rol_id, activo, contratista_id } = req.body;
 
     const userId = parseInt(id);
 
@@ -209,7 +216,14 @@ router.put('/:id', requireAuth, requirePermission('usuarios.editar'), auditUsuar
       });
     }
 
-    await updateUser(userId, { nombre_completo, email, rol_id, activo });
+    const datosActualizar = { nombre_completo, email, rol_id, activo };
+
+    // Agregar contratista_id solo si se proporciona
+    if (contratista_id !== undefined) {
+      datosActualizar.contratista_id = contratista_id ? parseInt(contratista_id) : null;
+    }
+
+    await updateUser(userId, datosActualizar);
 
     res.json({
       success: true,

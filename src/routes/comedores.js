@@ -2,9 +2,11 @@ const express = require('express');
 const router = express.Router();
 const comedorService = require('../services/comedorService');
 const contratistaService = require('../services/contratistaService');
+const db = require('../database/db');
+const { requireAuth, requirePermission } = require('../middleware/authMiddleware');
 
-// Obtener todos los comedores
-router.get('/', async (req, res) => {
+// Obtener todos los comedores con información del contratista
+router.get('/', requireAuth, async (req, res) => {
   try {
     const comedores = await comedorService.obtenerTodosComedores();
     res.json(comedores);
@@ -44,7 +46,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // Crear nuevo comedor
-router.post('/', async (req, res) => {
+router.post('/', requireAuth, requirePermission('boletos.crear'), async (req, res) => {
   try {
     const { nombre, nombreContratista, ubicacion, codigo } = req.body;
 
@@ -77,7 +79,7 @@ router.post('/', async (req, res) => {
 });
 
 // Actualizar comedor
-router.put('/:id', async (req, res) => {
+router.put('/:id', requireAuth, requirePermission('boletos.crear'), async (req, res) => {
   try {
     const { id } = req.params;
     const { nombre, ubicacion, codigo } = req.body;
@@ -107,7 +109,7 @@ router.put('/:id', async (req, res) => {
 });
 
 // Desactivar comedor
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', requireAuth, requirePermission('usuarios.eliminar'), async (req, res) => {
   try {
     const { id } = req.params;
     const resultado = await comedorService.desactivarComedor(id);
