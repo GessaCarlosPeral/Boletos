@@ -41,6 +41,7 @@ app.use('/escaneos', express.static(path.join(__dirname, '../escaneos')));
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/boletos', require('./routes/boletos'));
 app.use('/api/comedores', require('./routes/comedores'));
+app.use('/api/contratistas', require('./routes/contratistas'));
 app.use('/api/precios', require('./routes/precios'));
 app.use('/api/auditoria', require('./routes/auditoria'));
 app.use('/api/usuarios', require('./routes/usuarios'));
