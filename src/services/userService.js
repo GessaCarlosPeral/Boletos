@@ -108,15 +108,15 @@ async function userHasPermission(userId, permissionCode) {
  * @returns {Promise<number>} ID del usuario creado
  */
 async function createUser(userData) {
-  const { username, password, nombre_completo, email, rol_id, creado_por } = userData;
+  const { username, password, nombre_completo, email, rol_id, creado_por, contratista_id } = userData;
 
   const passwordHash = await hashPassword(password);
 
   return new Promise((resolve, reject) => {
     db.run(
-      `INSERT INTO usuarios (username, password_hash, nombre_completo, email, rol_id, creado_por)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [username, passwordHash, nombre_completo, email, rol_id, creado_por || null],
+      `INSERT INTO usuarios (username, password_hash, nombre_completo, email, rol_id, creado_por, contratista_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [username, passwordHash, nombre_completo, email, rol_id, creado_por || null, contratista_id || null],
       function(err) {
         if (err) {
           reject(err);
@@ -181,7 +181,7 @@ function getAllUsers() {
  * @returns {Promise<void>}
  */
 function updateUser(userId, updateData) {
-  const { nombre_completo, email, rol_id, activo } = updateData;
+  const { nombre_completo, email, rol_id, activo, contratista_id } = updateData;
 
   return new Promise((resolve, reject) => {
     db.run(
@@ -189,9 +189,10 @@ function updateUser(userId, updateData) {
        SET nombre_completo = COALESCE(?, nombre_completo),
            email = COALESCE(?, email),
            rol_id = COALESCE(?, rol_id),
-           activo = COALESCE(?, activo)
+           activo = COALESCE(?, activo),
+           contratista_id = ?
        WHERE id = ?`,
-      [nombre_completo, email, rol_id, activo, userId],
+      [nombre_completo, email, rol_id, activo, contratista_id !== undefined ? contratista_id : null, userId],
       (err) => {
         if (err) {
           reject(err);

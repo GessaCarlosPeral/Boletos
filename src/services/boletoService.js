@@ -375,14 +375,15 @@ class BoletoService {
   async obtenerContratistas() {
     return new Promise((resolve, reject) => {
       db.all(`
-        SELECT DISTINCT contratista
-        FROM boletos
-        ORDER BY contratista
+        SELECT nombre
+        FROM contratistas
+        WHERE activo = 1
+        ORDER BY nombre
       `, (err, rows) => {
         if (err) {
           reject(err);
         } else {
-          resolve(rows.map(r => r.contratista));
+          resolve(rows.map(r => r.nombre));
         }
       });
     });
