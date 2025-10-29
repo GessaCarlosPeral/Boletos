@@ -64,6 +64,10 @@ app.get('/validador', (req, res) => {
   res.sendFile(path.join(__dirname, '../public/validator/index.html'));
 });
 
+app.get('/contratista', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/contratista/index.html'));
+});
+
 // Iniciar servidor HTTP
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`\n🚀 Sistema GESSA Boletos MVP`);
