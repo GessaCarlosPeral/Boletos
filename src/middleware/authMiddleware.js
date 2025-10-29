@@ -65,7 +65,8 @@ async function requireAuth(req, res, next) {
       email: user.email,
       rol: user.rol_nombre,
       nivelAcceso: user.nivel_acceso,
-      rolId: user.rol_id
+      rolId: user.rol_id,
+      contratista: user.contratista_nombre || null
     };
 
     next();
