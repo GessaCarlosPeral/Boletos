@@ -120,6 +120,15 @@ db.serialize(() => {
           console.log('Columna precio_unitario agregada a lotes');
         }
       });
+
+      // Migración: Agregar columna usuario_id si no existe
+      db.run(`ALTER TABLE lotes ADD COLUMN usuario_id INTEGER REFERENCES usuarios(id)`, (alterErr) => {
+        if (alterErr && !alterErr.message.includes('duplicate column')) {
+          console.error('Error en migración usuario_id:', alterErr);
+        } else if (!alterErr) {
+          console.log('Columna usuario_id agregada a lotes');
+        }
+      });
     }
   });
 
@@ -281,6 +290,15 @@ db.serialize(() => {
       console.error('Error al crear tabla usuarios:', err);
     } else {
       console.log('Tabla usuarios lista');
+
+      // Migración: Agregar columna contratista_id si no existe
+      db.run(`ALTER TABLE usuarios ADD COLUMN contratista_id INTEGER`, (alterErr) => {
+        if (alterErr && !alterErr.message.includes('duplicate column')) {
+          console.error('Error en migración contratista_id:', alterErr);
+        } else if (!alterErr) {
+          console.log('Columna contratista_id agregada a usuarios');
+        }
+      });
     }
   });
 
