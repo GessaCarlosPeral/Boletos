@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Panel Contratista - GESSA Boletos</title>
+  <link rel="stylesheet" href="contratista.css">
+  <script>
+    // Verificación de autenticación ANTES de cargar la página
+    (function() {
+      const token = localStorage.getItem('auth_token');
+      const userStr = localStorage.getItem('auth_user');
+
+      if (!token || !userStr) {
+        console.log('Sin autenticación detectada en HEAD, redirigiendo...');
+        window.location.replace('/login-contratista.html');
+      }
+    })();
+  </script>
+</head>
+<body>
+  <div class="container">
+    <div class="header" style="display: flex; justify-content: space-between; align-items: center;">
+      <div>
+        <h1>🏢 Panel Contratista - GESSA</h1>
+        <p>Gestión de Boletos para Contratistas</p>
+      </div>
+      <div id="userInfo" style="text-align: right; padding: 1rem 1.5rem; background: rgba(255, 255, 255, 0.95); border-radius: 0.75rem; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+        <div style="font-size: 0.75rem; opacity: 0.7; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.25rem; color: #64748b;">👤 Usuario</div>
+        <div id="userName" style="font-weight: 700; font-size: 1.25rem; margin-bottom: 0.25rem; color: #1e293b;"></div>
+        <div id="userContratista" style="font-size: 0.875rem; margin-bottom: 0.5rem; color: #000000; font-weight: 500;">🏢 <span></span></div>
+        <div id="userRole" style="font-size: 0.875rem; margin-bottom: 0.75rem; padding: 0.25rem 0.5rem; background: rgba(245, 158, 11, 0.1); border-radius: 0.25rem; display: inline-block; color: #92400e; font-weight: 600;"></div>
+        <div>
+          <button onclick="cerrarSesion()" style="background: #ef4444; color: white; border: none; padding: 0.5rem 1.25rem; border-radius: 0.5rem; cursor: pointer; font-size: 0.875rem; font-weight: 600; transition: all 0.2s; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2); width: 100%;" onmouseover="this.style.background='#dc2626'; this.style.transform='translateY(-1px)'; this.style.boxShadow='0 4px 8px rgba(0, 0, 0, 0.3)'" onmouseout="this.style.background='#ef4444'; this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 4px rgba(0, 0, 0, 0.2)'">
+            🚪 Cerrar Sesión
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tabs de navegación -->
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="generar">📝 Generar Boletos</button>
+      <button class="tab-btn" data-tab="lotes">📦 Mis Lotes</button>
+    </div>
+
+    <!-- TAB 1: Generar Boletos -->
+    <div class="tab-content active" id="tab-generar">
+      <div class="card">
+        <h2>📝 Generar Nuevo Lote de Boletos</h2>
+
+        <form id="generarForm">
+          <div class="form-group">
+            <label for="contratista">Nombre del Contratista *</label>
+            <input type="text" id="contratista" readonly style="background-color: #f3f4f6; cursor: not-allowed;">
+          </div>
+
+          <div class="form-group">
+            <label for="comedor">Comedor (opcional)</label>
+            <select id="comedor">
+              <option value="">Sin comedor asignado</option>
+              <option value="nuevo">➕ Nuevo comedor</option>
+            </select>
+          </div>
+
+          <div class="form-group" id="comedorCustomGroup" style="display: none;">
+            <label for="comedorCustom">Nombre del Nuevo Comedor</label>
+            <input type="text" id="comedorCustom" placeholder="Ej: Comedor Norte">
+          </div>
+
+          <div class="form-group">
+            <label for="precioSelect">Tipo de Platillo *</label>
+            <select id="precioSelect" required>
+              <option value="">Seleccione un platillo</option>
+            </select>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="cantidad">Cantidad de Boletos *</label>
+              <input type="number" id="cantidad" min="1" max="10000" value="1" required>
+            </div>
+
+            <div class="form-group">
+              <label for="monto">Monto Total ($)</label>
+              <input type="number" id="monto" min="0" step="0.01" placeholder="0.00" readonly style="background-color: #f3f4f6; cursor: not-allowed;">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="tipoPago">Tipo de Pago *</label>
+            <select id="tipoPago" required>
+              <option value="CONTADO">💵 Contado</option>
+              <option value="CREDITO">💳 Crédito</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="fechaVencimiento">Fecha de Vencimiento</label>
+            <input type="date" id="fechaVencimiento" disabled style="background-color: #f3f4f6; cursor: not-allowed;">
+            <small style="color: #64748b; font-size: 0.875rem; margin-top: 0.25rem; display: block;">
+              ℹ️ La fecha de vencimiento se calcula automáticamente: <strong>3 meses a partir de la fecha de solicitud</strong>
+            </small>
+          </div>
+
+          <div style="margin-top: 1.5rem;">
+            <button type="submit" class="btn btn-primary" id="generarBtn">
+              🎫 Generar Lote de Boletos
+            </button>
+          </div>
+        </form>
+
+        <div class="result-box" id="resultBox">
+          <h3>✅ Lote Generado Exitosamente</h3>
+          <div class="result-info" id="resultInfo"></div>
+          <p style="color: #64748b; margin-top: 1rem; font-size: 0.95rem;">
+            ℹ️ Su lote ha sido creado y está pendiente de autorización. Una vez autorizado por el administrador, podrá descargar el PDF de sus boletos.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 2: Mis Lotes -->
+    <div class="tab-content" id="tab-lotes">
+      <div class="card">
+        <h2>📦 Mis Lotes de Boletos</h2>
+
+        <!-- Filtros y Ordenación -->
+        <div class="filters">
+          <div class="form-row">
+            <div class="form-group">
+              <label for="buscarLote">Buscar por número de lote:</label>
+              <input type="text" id="buscarLote" placeholder="🔍 Escriba el número de lote...">
+            </div>
+            <div class="form-group">
+              <label for="ordenarLotes">Ordenar por:</label>
+              <select id="ordenarLotes">
+                <option value="recientes">Más recientes primero</option>
+                <option value="antiguos">Más antiguos primero</option>
+                <option value="pendientes">Estado: Pendientes primero</option>
+                <option value="cantidad">Mayor cantidad de boletos</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Lista de lotes -->
+        <div id="lotesContainer" class="lotes-list">
+          <div class="loading">
+            <div class="spinner"></div>
+            <p>Cargando lotes...</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal de detalle de lote -->
+      <div id="loteModal" class="modal">
+        <div class="modal-content">
+          <span class="modal-close">&times;</span>
+          <h2 id="modalTitle">Detalle del Lote</h2>
+
+          <div class="lote-info" id="modalLoteInfo"></div>
+
+          <!-- Botón de descarga (solo si está autorizado) -->
+          <div id="downloadSection" style="display: none; margin-top: 1.5rem;">
+            <a href="#" id="downloadPdfBtn" class="btn btn-primary" style="text-decoration: none; display: inline-block;">
+              📥 Descargar PDF de Boletos
+            </a>
+          </div>
+
+          <div id="pendingMessage" style="display: none; margin-top: 1.5rem; padding: 1rem; background: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 0.5rem;">
+            <p style="margin: 0; color: #92400e;">
+              ⏳ <strong>Lote Pendiente de Autorización</strong><br>
+              Su lote está en espera de ser autorizado por el administrador. Una vez aprobado, podrá descargar el PDF.
+            </p>
+          </div>
+
+          <!-- Historial de descargas -->
+          <div id="historialDescargasSection"></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="contratista.js"></script>
+</body>
+</html>
