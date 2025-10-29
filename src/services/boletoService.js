@@ -5,7 +5,7 @@ const comedorService = require('./comedorService');
 
 class BoletoService {
   // Generar lote de boletos
-  async generarLote(contratista, cantidad, fechaVencimiento, monto = null, comedorId = null, nombreComedor = null, tipoPago = 'CONTADO', precioId = null) {
+  async generarLote(contratista, cantidad, fechaVencimiento, monto = null, comedorId = null, nombreComedor = null, tipoPago = 'CONTADO', precioId = null, usuarioId = null) {
     // Obtener o crear contratista para obtener su código
     const contratistaData = await contratistaService.obtenerOCrearContratista(contratista);
     const codigoContratista = contratistaData.codigo;
@@ -37,9 +37,9 @@ class BoletoService {
       db.serialize(() => {
         // Primero registrar el lote en la tabla de lotes
         db.run(`
-          INSERT INTO lotes (lote_id, contratista, cantidad, fecha_vencimiento, estado_pago, monto, comedor_id, tipo_pago, precio_id, precio_nombre, precio_unitario)
-          VALUES (?, ?, ?, ?, 'PENDIENTE', ?, ?, ?, ?, ?, ?)
-        `, [lote, contratista, cantidad, fechaVencimiento, monto, comedorId, tipoPago, precioData ? precioData.id : null, precioData ? precioData.nombre : null, precioData ? precioData.precio_unitario : null], (err) => {
+          INSERT INTO lotes (lote_id, contratista, cantidad, fecha_vencimiento, estado_pago, monto, comedor_id, tipo_pago, precio_id, precio_nombre, precio_unitario, usuario_id)
+          VALUES (?, ?, ?, ?, 'PENDIENTE', ?, ?, ?, ?, ?, ?, ?)
+        `, [lote, contratista, cantidad, fechaVencimiento, monto, comedorId, tipoPago, precioData ? precioData.id : null, precioData ? precioData.nombre : null, precioData ? precioData.precio_unitario : null, usuarioId], (err) => {
           if (err) {
             reject(err);
             return;
@@ -268,7 +268,7 @@ class BoletoService {
   }
 
   // Obtener lista de lotes
-  async obtenerLotes(contratista = null) {
+  async obtenerLotes(contratista = null, usuarioId = null) {
     return new Promise((resolve, reject) => {
       let query = `
         SELECT
@@ -286,19 +286,30 @@ class BoletoService {
           l.tipo_pago,
           l.precio_nombre,
           l.precio_unitario,
+          l.usuario_id,
           (SELECT COUNT(*) FROM historial_escaneos WHERE lote_id = b.lote AND tipo = 'RECHAZADO') as total_rechazos
         FROM boletos b
         LEFT JOIN lotes l ON b.lote = l.lote_id
       `;
 
       const params = [];
+      const conditions = [];
 
       if (contratista) {
-        query += ' WHERE b.contratista = ?';
+        conditions.push('b.contratista = ?');
         params.push(contratista);
       }
 
-      query += ' GROUP BY b.lote, b.contratista, l.estado_pago, l.codigo_autorizacion, l.pdf_url, l.monto, l.tipo_pago, l.precio_nombre, l.precio_unitario ORDER BY fecha_creacion DESC';
+      if (usuarioId) {
+        conditions.push('l.usuario_id = ?');
+        params.push(usuarioId);
+      }
+
+      if (conditions.length > 0) {
+        query += ' WHERE ' + conditions.join(' AND ');
+      }
+
+      query += ' GROUP BY b.lote, b.contratista, l.estado_pago, l.codigo_autorizacion, l.pdf_url, l.monto, l.tipo_pago, l.precio_nombre, l.precio_unitario, l.usuario_id ORDER BY fecha_creacion DESC';
 
       db.all(query, params, (err, lotes) => {
         if (err) {
@@ -830,6 +841,26 @@ class BoletoService {
           });
         });
       });
+    });
+  }
+
+  // Contar descargas de un lote
+  async contarDescargasLote(loteId) {
+    return new Promise((resolve, reject) => {
+      db.get(
+        `SELECT COUNT(*) as total_descargas FROM historial_descargas WHERE lote_id = ?`,
+        [loteId],
+        (err, row) => {
+          if (err) {
+            reject(err);
+          } else {
+            resolve({
+              lote_id: loteId,
+              total_descargas: row.total_descargas || 0
+            });
+          }
+        }
+      );
     });
   }
 }

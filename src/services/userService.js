@@ -9,9 +9,10 @@ const { hashPassword } = require('./authService');
 function getUserByUsername(username) {
   return new Promise((resolve, reject) => {
     db.get(
-      `SELECT u.*, r.nombre as rol_nombre, r.nivel_acceso
+      `SELECT u.*, r.nombre as rol_nombre, r.nivel_acceso, c.nombre as contratista_nombre
        FROM usuarios u
        INNER JOIN roles r ON u.rol_id = r.id
+       LEFT JOIN contratistas c ON u.contratista_id = c.id
        WHERE u.username = ? AND u.activo = 1`,
       [username],
       (err, row) => {
@@ -33,9 +34,10 @@ function getUserByUsername(username) {
 function getUserById(userId) {
   return new Promise((resolve, reject) => {
     db.get(
-      `SELECT u.*, r.nombre as rol_nombre, r.nivel_acceso
+      `SELECT u.*, r.nombre as rol_nombre, r.nivel_acceso, c.nombre as contratista_nombre
        FROM usuarios u
        INNER JOIN roles r ON u.rol_id = r.id
+       LEFT JOIN contratistas c ON u.contratista_id = c.id
        WHERE u.id = ? AND u.activo = 1`,
       [userId],
       (err, row) => {

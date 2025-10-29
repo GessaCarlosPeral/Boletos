@@ -15,14 +15,14 @@ const db = require('../database/db');
  * @param {string} ipAddress - IP del usuario
  * @returns {Promise<number>} ID del registro de auditoría
  */
-function registrarAuditoria(usuarioId, accion, tabla, registroId = null, detalles = null, ipAddress = null) {
+function registrarAuditoria(usuarioId, accion, tabla, registroId = null, detalles = null, ipAddress = null, modulo = 'sistema') {
   return new Promise((resolve, reject) => {
     const detallesJSON = detalles ? JSON.stringify(detalles) : null;
 
     db.run(
-      `INSERT INTO auditoria (usuario_id, accion, tabla_afectada, registro_id, detalles, ip_address)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [usuarioId, accion, tabla, registroId, detallesJSON, ipAddress],
+      `INSERT INTO auditoria (usuario_id, accion, modulo, tabla_afectada, registro_id, detalles, ip_address)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [usuarioId, accion, modulo, tabla, registroId, detallesJSON, ipAddress],
       function(err) {
         if (err) {
           console.error('Error registrando auditoría:', err);
