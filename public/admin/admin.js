@@ -274,7 +274,7 @@ fechaVencimientoInput.min = hoy;
 
 // Establecer fecha predeterminada a 3 meses (90 días para evitar problemas con meses)
 const fechaPredeterminada = new Date();
-fechaPredeterminada.setDate(fechaPredeterminada.getDate() + 90);
+fechaPredeterminada.setDate(fechaPredeterminada.getDate() + 30);
 fechaVencimientoInput.value = fechaPredeterminada.toISOString().split('T')[0];
 
 // Establecer fecha máxima de pago (hoy)
