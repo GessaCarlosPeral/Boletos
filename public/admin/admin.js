@@ -13,14 +13,33 @@
     return;
   }
 
-  // Cargar info del usuario en el header
-  try {
-    const user = JSON.parse(userStr);
-    document.getElementById('userName').textContent = user.nombre_completo || user.username;
-    document.getElementById('userRole').textContent = `Rol: ${user.rol}`;
-  } catch (error) {
-    console.error('Error cargando datos de usuario:', error);
-    window.location.href = '/login';
+  // Cargar info del usuario en el header cuando el DOM esté listo
+  function cargarInfoUsuario() {
+    try {
+      const user = JSON.parse(userStr);
+      const userNameElement = document.getElementById('userName');
+      const userRoleElement = document.getElementById('userRole');
+
+      if (userNameElement) {
+        userNameElement.textContent = user.nombre_completo || user.username;
+        console.log('Nombre de usuario establecido:', user.nombre_completo || user.username);
+      } else {
+        console.error('Elemento userName no encontrado');
+      }
+
+      if (userRoleElement) {
+        userRoleElement.textContent = `Rol: ${user.rol}`;
+      }
+    } catch (error) {
+      console.error('Error cargando datos de usuario:', error);
+      window.location.href = '/login';
+    }
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', cargarInfoUsuario);
+  } else {
+    cargarInfoUsuario();
   }
 })();
 
@@ -65,7 +84,7 @@ async function fetchAutenticado(url, options = {}) {
 function cerrarSesion() {
   localStorage.removeItem('auth_token');
   localStorage.removeItem('auth_user');
-  window.location.href = '/login';
+  window.location.href = '/';
 }
 
 // ==================================================
@@ -129,7 +148,7 @@ tabs.forEach(tab => {
 
     // Cargar datos según tab
     if (tabName === 'lotes') {
-      cargarContratistas();
+      cargarContratistasParaFiltro();
       cargarLotes();
     } else if (tabName === 'stats') {
       cargarFiltrosEstadisticas();
@@ -170,8 +189,9 @@ async function cargarContratistasGeneracion() {
   }
 }
 
-// Cargar contratistas al inicio
+// Cargar contratistas y comedores al inicio
 cargarContratistasGeneracion();
+cargarComedores(); // Cargar todos los comedores inicialmente
 
 // Mostrar/ocultar campo personalizado contratista
 contratistaSelect.addEventListener('change', async () => {
@@ -200,10 +220,15 @@ comedorSelect.addEventListener('change', () => {
   }
 });
 
-// Cargar comedores de un contratista
-async function cargarComedores(nombreContratista) {
+// Cargar comedores de un contratista o todos
+async function cargarComedores(nombreContratista = null) {
   try {
-    const response = await fetch(`/api/comedores/contratista/${encodeURIComponent(nombreContratista)}`);
+    let url = '/api/comedores';
+    if (nombreContratista) {
+      url = `/api/comedores/contratista/${encodeURIComponent(nombreContratista)}`;
+    }
+
+    const response = await fetchAutenticado(url);
     const comedores = await response.json();
 
     // Limpiar y agregar opciones
@@ -354,20 +379,23 @@ generarForm.addEventListener('submit', async (e) => {
 // ==================================================
 
 // Cargar contratistas para filtro
-async function cargarContratistas() {
+async function cargarContratistasParaFiltro() {
   try {
-    const response = await fetch('/api/boletos/contratistas');
-    const contratistas = await response.json();
+    const response = await fetchAutenticado('/api/contratistas');
+    const data = await response.json();
 
-    filtroContratistaSelect.innerHTML = '<option value="">Todos los contratistas</option>';
-    contratistas.forEach(c => {
-      const option = document.createElement('option');
-      option.value = c;
-      option.textContent = c;
-      filtroContratistaSelect.appendChild(option);
-    });
+    if (data.success && data.contratistas) {
+      filtroContratistaSelect.innerHTML = '<option value="">Todos los contratistas</option>';
+      data.contratistas.forEach(c => {
+        const option = document.createElement('option');
+        option.value = c.nombre;
+        option.textContent = c.nombre;
+        filtroContratistaSelect.appendChild(option);
+      });
+      console.log('✅ Contratistas cargados en filtro:', data.contratistas.length);
+    }
   } catch (error) {
-    console.error('Error cargando contratistas:', error);
+    console.error('Error cargando contratistas para filtro:', error);
   }
 }
 
@@ -399,8 +427,9 @@ async function cargarLotes(contratista = null) {
       ? `/api/boletos/lotes?contratista=${encodeURIComponent(contratista)}`
       : '/api/boletos/lotes';
 
-    const response = await fetch(url);
-    const lotes = await response.json();
+    const response = await fetchAutenticado(url);
+    const data = await response.json();
+    const lotes = data.lotes || data; // Manejar ambos formatos
 
     if (lotes.length === 0) {
       lotesContainer.innerHTML = '<p style="text-align: center; color: #64748b; padding: 2rem;">No hay lotes disponibles</p>';
@@ -410,7 +439,7 @@ async function cargarLotes(contratista = null) {
     // Obtener último movimiento para cada lote
     const lotesConMovimiento = await Promise.all(lotes.map(async (lote) => {
       try {
-        const movResponse = await fetch(`/api/boletos/ultimo-movimiento/${lote.lote}`);
+        const movResponse = await fetchAutenticado(`/api/boletos/ultimo-movimiento/${lote.lote}`);
         const movData = await movResponse.json();
         return { ...lote, ultimo_movimiento: movData.ultimo_movimiento };
       } catch (error) {
@@ -1642,8 +1671,9 @@ async function cargarPrecioActivo() {
 // Cargar lista de precios
 async function cargarPrecios() {
   try {
-    const response = await fetch('/api/precios');
-    const precios = await response.json();
+    const response = await fetchAutenticado('/api/precios');
+    const data = await response.json();
+    const precios = data.precios || data; // Manejar ambos formatos
 
     if (precios.length === 0) {
       preciosContainer.innerHTML = `
@@ -2758,8 +2788,9 @@ function cerrarModalActividad() {
 // Cargar precios activos en el SELECT
 async function cargarPreciosActivos() {
   try {
-    const response = await fetch('/api/precios');
-    const precios = await response.json();
+    const response = await fetchAutenticado('/api/precios');
+    const data = await response.json();
+    const precios = data.precios || data; // Manejar ambos formatos
 
     const precioSelect = document.getElementById('precioSelect');
     if (!precioSelect) return;
