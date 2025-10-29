@@ -79,16 +79,64 @@ router.post('/login', async (req, res) => {
       user: {
         id: user.id,
         username: user.username,
+        nombre_completo: user.nombre_completo,
         nombre: user.nombre_completo,
         email: user.email,
         rol: user.rol_nombre,
         nivelAcceso: user.nivel_acceso,
-        permisos: permissionCodes
+        permisos: permissionCodes,
+        contratista: user.contratista_nombre || null
       }
     });
 
   } catch (error) {
     console.error('Error en login:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error en el servidor'
+    });
+  }
+});
+
+/**
+ * POST /api/auth/check-username
+ * Verificar usuario y obtener su contratista (sin contraseña)
+ */
+router.post('/check-username', async (req, res) => {
+  try {
+    const { username } = req.body;
+
+    if (!username) {
+      return res.status(400).json({
+        success: false,
+        message: 'Username es requerido'
+      });
+    }
+
+    // Obtener usuario
+    const user = await getUserByUsername(username);
+
+    if (!user) {
+      return res.json({
+        success: false,
+        exists: false
+      });
+    }
+
+    // Respuesta con información del usuario (sin datos sensibles)
+    res.json({
+      success: true,
+      exists: true,
+      user: {
+        username: user.username,
+        nombre_completo: user.nombre_completo,
+        rol: user.rol_nombre,
+        contratista: user.contratista_nombre || null
+      }
+    });
+
+  } catch (error) {
+    console.error('Error verificando username:', error);
     res.status(500).json({
       success: false,
       message: 'Error en el servidor'

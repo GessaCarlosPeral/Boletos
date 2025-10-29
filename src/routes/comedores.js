@@ -17,7 +17,7 @@ router.get('/', requireAuth, async (req, res) => {
 });
 
 // Obtener comedores por nombre de contratista
-router.get('/contratista/:nombreContratista', async (req, res) => {
+router.get('/contratista/:nombreContratista', requireAuth, async (req, res) => {
   try {
     const { nombreContratista } = req.params;
     const comedores = await comedorService.obtenerComedoresPorNombreContratista(nombreContratista);

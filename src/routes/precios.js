@@ -1,12 +1,13 @@
 const express = require('express');
 const router = express.Router();
 const precioService = require('../services/precioService');
+const { requireAuth } = require('../middleware/authMiddleware');
 
 // Obtener todos los precios
-router.get('/', async (req, res) => {
+router.get('/', requireAuth, async (req, res) => {
   try {
     const precios = await precioService.obtenerPrecios();
-    res.json(precios);
+    res.json({ precios });
   } catch (error) {
     console.error('Error obteniendo precios:', error);
     res.status(500).json({ error: error.message });

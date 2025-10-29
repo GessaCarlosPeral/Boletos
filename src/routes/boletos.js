@@ -67,24 +67,37 @@ const uploadEscaneo = multer({
 // Generar nuevo lote de boletos (requiere permiso boletos.crear)
 router.post('/generar', requireAuth, requirePermission('boletos.crear'), auditLoteCreate(), async (req, res) => {
   try {
-    const { contratista, cantidad, fechaVencimiento, monto, comedorId, nombreComedor, tipoPago, precioId } = req.body;
+    const { contratista, cantidad, monto, comedorId, nombreComedor, tipoPago, precioId, fechaVencimiento: fechaVencimientoParam } = req.body;
 
-    if (!contratista || !cantidad || !fechaVencimiento) {
+    if (!contratista || !cantidad) {
       return res.status(400).json({
-        error: 'Faltan datos requeridos: contratista, cantidad, fechaVencimiento'
+        error: 'Faltan datos requeridos: contratista, cantidad'
       });
+    }
+
+    // Calcular fecha de vencimiento:
+    // - Si viene del frontend (admin), usar esa fecha
+    // - Si no viene (contratista), calcular automáticamente 3 meses
+    let fechaVencimientoStr;
+    if (fechaVencimientoParam) {
+      fechaVencimientoStr = fechaVencimientoParam;
+    } else {
+      const fechaVencimiento = new Date();
+      fechaVencimiento.setMonth(fechaVencimiento.getMonth() + 3);
+      fechaVencimientoStr = fechaVencimiento.toISOString().split('T')[0];
     }
 
     // Generar boletos (ahora con soporte para comedores, tipo de pago y precio)
     const resultado = await boletoService.generarLote(
       contratista,
       parseInt(cantidad),
-      fechaVencimiento,
+      fechaVencimientoStr,
       monto ? parseFloat(monto) : null,
       comedorId ? parseInt(comedorId) : null,
       nombreComedor,
       tipoPago || 'CONTADO',
-      precioId ? parseInt(precioId) : null
+      precioId ? parseInt(precioId) : null,
+      req.user.id // Agregar el usuario que crea el lote
     );
 
     // Generar PDF (pasando el lote ID y comedor)
@@ -236,11 +249,22 @@ router.get('/estadisticas', async (req, res) => {
 });
 
 // Obtener lista de lotes
-router.get('/lotes', async (req, res) => {
+router.get('/lotes', requireAuth, async (req, res) => {
   try {
-    const { contratista } = req.query;
-    const lotes = await boletoService.obtenerLotes(contratista);
-    res.json(lotes);
+    let { contratista } = req.query;
+    let usuarioId = null;
+
+    // Si el usuario es contratista, solo puede ver sus propios lotes
+    if (req.user.rol === 'contratista') {
+      contratista = req.user.contratista; // Forzar filtrado por el nombre de su empresa
+      usuarioId = req.user.id; // Filtrar solo por los lotes creados por este usuario
+    }
+
+    console.log('Obteniendo lotes para contratista:', contratista, 'usuarioId:', usuarioId);
+    const lotes = await boletoService.obtenerLotes(contratista, usuarioId);
+    console.log('Lotes encontrados:', lotes.length);
+
+    res.json({ lotes });
   } catch (error) {
     console.error('Error obteniendo lotes:', error);
     res.status(500).json({ error: error.message });
@@ -255,6 +279,18 @@ router.get('/lotes/:loteId', async (req, res) => {
     res.json(detalle);
   } catch (error) {
     console.error('Error obteniendo detalle de lote:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Obtener número de descargas de un lote
+router.get('/lotes/:loteId/descargas', requireAuth, async (req, res) => {
+  try {
+    const { loteId } = req.params;
+    const result = await boletoService.contarDescargasLote(loteId);
+    res.json(result);
+  } catch (error) {
+    console.error('Error contando descargas:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -357,7 +393,7 @@ router.get('/verificar-descarga/:loteId', async (req, res) => {
 });
 
 // Registrar descarga de PDF
-router.post('/descargar/:loteId', auditDescarga(), async (req, res) => {
+router.post('/descargar/:loteId', requireAuth, auditDescarga(), async (req, res) => {
   try {
     const { loteId } = req.params;
     const { usuario, razon } = req.body;
@@ -384,7 +420,7 @@ router.post('/descargar/:loteId', auditDescarga(), async (req, res) => {
 });
 
 // Obtener historial de descargas
-router.get('/historial-descargas/:loteId', async (req, res) => {
+router.get('/historial-descargas/:loteId', requireAuth, async (req, res) => {
   try {
     const { loteId } = req.params;
     const historial = await boletoService.obtenerHistorialDescargas(loteId);
