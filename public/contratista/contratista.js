@@ -221,7 +221,7 @@ function calcularFechaVencimiento() {
   const fechaVencimientoInput = document.getElementById('fechaVencimiento');
   if (fechaVencimientoInput) {
     const fechaVencimiento = new Date();
-    fechaVencimiento.setMonth(fechaVencimiento.getMonth() + 3);
+    fechaVencimiento.setMonth(fechaVencimiento.getMonth() + 1);
     const fechaFormateada = fechaVencimiento.toISOString().split('T')[0];
     fechaVencimientoInput.value = fechaFormateada;
     console.log('📅 Fecha de vencimiento calculada:', fechaFormateada);
