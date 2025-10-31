@@ -130,6 +130,7 @@ const autorizacionForm = document.getElementById('autorizacionForm');
 const statsContainer = document.getElementById('statsContainer');
 const filtroStatsContratista = document.getElementById('filtroStatsContratista');
 const filtroStatsComedor = document.getElementById('filtroStatsComedor');
+const filtroStatsLote = document.getElementById('filtroStatsLote');
 
 // ==================================================
 // TABS
@@ -274,7 +275,7 @@ fechaVencimientoInput.min = hoy;
 
 // Establecer fecha predeterminada a 3 meses (90 días para evitar problemas con meses)
 const fechaPredeterminada = new Date();
-fechaPredeterminada.setDate(fechaPredeterminada.getDate() + 30);
+fechaPredeterminada.setDate(fechaPredeterminada.getDate() + 90);
 fechaVencimientoInput.value = fechaPredeterminada.toISOString().split('T')[0];
 
 // Establecer fecha máxima de pago (hoy)
@@ -1057,7 +1058,7 @@ async function cargarFiltrosEstadisticas() {
     });
 
     // Cargar todos los comedores
-    const comedoresResponse = await fetch('/api/comedores');
+    const comedoresResponse = await fetchAutenticado('/api/comedores');
     const comedores = await comedoresResponse.json();
 
     filtroStatsComedor.innerHTML = '<option value="">Todos los comedores</option>';
@@ -1066,6 +1067,19 @@ async function cargarFiltrosEstadisticas() {
       option.value = comedor.id;
       option.textContent = `${comedor.nombre} (${comedor.contratista_nombre})`;
       filtroStatsComedor.appendChild(option);
+    });
+
+    // Cargar todos los lotes
+    const lotesResponse = await fetchAutenticado('/api/boletos/lotes');
+    const lotesData = await lotesResponse.json();
+    const lotes = lotesData.lotes || [];
+
+    filtroStatsLote.innerHTML = '<option value="">Todos los lotes</option>';
+    lotes.forEach(lote => {
+      const option = document.createElement('option');
+      option.value = lote.lote;
+      option.textContent = `${lote.lote} - ${lote.contratista} (${lote.total_boletos} boletos)`;
+      filtroStatsLote.appendChild(option);
     });
   } catch (error) {
     console.error('Error cargando filtros:', error);
@@ -1083,6 +1097,11 @@ filtroStatsComedor.addEventListener('change', () => {
   cargarGraficas();
 });
 
+filtroStatsLote.addEventListener('change', () => {
+  cargarEstadisticas();
+  cargarGraficas();
+});
+
 async function cargarEstadisticas() {
   statsContainer.innerHTML = '<div class="loading"><div class="spinner"></div><p>Cargando estadísticas...</p></div>';
 
@@ -1094,6 +1113,9 @@ async function cargarEstadisticas() {
     }
     if (filtroStatsComedor.value) {
       params.append('comedorId', filtroStatsComedor.value);
+    }
+    if (filtroStatsLote.value) {
+      params.append('loteId', filtroStatsLote.value);
     }
 
     const url = `/api/boletos/estadisticas${params.toString() ? '?' + params.toString() : ''}`;
@@ -1336,6 +1358,9 @@ async function cargarGraficas() {
     }
     if (filtroStatsComedor.value) {
       params.append('comedorId', filtroStatsComedor.value);
+    }
+    if (filtroStatsLote.value) {
+      params.append('loteId', filtroStatsLote.value);
     }
 
     const url = `/api/boletos/graficas${params.toString() ? '?' + params.toString() : ''}`;
@@ -2686,13 +2711,14 @@ async function resetearPassword(usuarioId, username) {
     const data = await response.json();
 
     if (data.success) {
-      alert(data.mensaje);
+      alert(`✅ ${data.mensaje}`);
     } else {
-      alert(data.error || 'Error restableciendo contraseña');
+      console.error('Error del servidor:', data);
+      alert(`❌ ${data.error || data.message || 'Error restableciendo contraseña'}`);
     }
   } catch (error) {
     console.error('Error restableciendo contraseña:', error);
-    alert('Error restableciendo contraseña');
+    alert(`❌ Error restableciendo contraseña: ${error.message}`);
   }
 }
 
