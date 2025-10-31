@@ -193,7 +193,7 @@ router.post('/', requireAuth, requirePermission('usuarios.crear'), auditUsuario(
  * PUT /api/usuarios/:id
  * Actualizar datos del usuario
  */
-router.put('/:id', requireAuth, requirePermission('usuarios.editar'), auditUsuario('UPDATE'), async (req, res) => {
+router.put('/:id', requireAuth, requirePermission('usuarios.actualizar'), auditUsuario('UPDATE'), async (req, res) => {
   try {
     const { id } = req.params;
     const { nombre_completo, email, rol_id, activo, contratista_id } = req.body;
@@ -253,7 +253,7 @@ router.put('/:id', requireAuth, requirePermission('usuarios.editar'), auditUsuar
  * PATCH /api/usuarios/:id/toggle-status
  * Activar/Desactivar usuario
  */
-router.patch('/:id/toggle-status', requireAuth, requirePermission('usuarios.editar'), async (req, res) => {
+router.patch('/:id/toggle-status', requireAuth, requirePermission('usuarios.actualizar'), async (req, res) => {
   try {
     const { id } = req.params;
     const userId = parseInt(id);
@@ -316,7 +316,7 @@ router.patch('/:id/toggle-status', requireAuth, requirePermission('usuarios.edit
  * PATCH /api/usuarios/:id/reset-password
  * Cambiar contraseña de usuario
  */
-router.patch('/:id/reset-password', requireAuth, requirePermission('usuarios.editar'), async (req, res) => {
+router.patch('/:id/reset-password', requireAuth, requirePermission('usuarios.actualizar'), async (req, res) => {
   try {
     const { id } = req.params;
     const { newPassword } = req.body;

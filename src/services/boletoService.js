@@ -227,7 +227,7 @@ class BoletoService {
   }
 
   // Obtener estadísticas
-  async obtenerEstadisticas(contratista = null, comedorId = null) {
+  async obtenerEstadisticas(contratista = null, comedorId = null, loteId = null) {
     return new Promise((resolve, reject) => {
       let query = `
         SELECT
@@ -249,6 +249,11 @@ class BoletoService {
       if (comedorId) {
         conditions.push('comedor_id = ?');
         params.push(parseInt(comedorId));
+      }
+
+      if (loteId) {
+        conditions.push('lote = ?');
+        params.push(loteId);
       }
 
       if (conditions.length > 0) {
@@ -611,7 +616,7 @@ class BoletoService {
   }
 
   // Obtener datos para gráficas
-  async obtenerDatosGraficas(contratista = null, comedorId = null, dias = 30) {
+  async obtenerDatosGraficas(contratista = null, comedorId = null, dias = 30, loteId = null) {
     return new Promise((resolve, reject) => {
       const fechaInicio = new Date();
       fechaInicio.setDate(fechaInicio.getDate() - dias);
@@ -637,6 +642,10 @@ class BoletoService {
         query1 += ' AND l.comedor_id = ?';
         params1.push(parseInt(comedorId));
       }
+      if (loteId) {
+        query1 += ' AND l.lote_id = ?';
+        params1.push(loteId);
+      }
 
       query1 += ' GROUP BY DATE(l.fecha_creacion) ORDER BY fecha';
 
@@ -658,6 +667,10 @@ class BoletoService {
       if (comedorId) {
         query2 += ' AND l.comedor_id = ?';
         params2.push(parseInt(comedorId));
+      }
+      if (loteId) {
+        query2 += ' AND l.lote_id = ?';
+        params2.push(loteId);
       }
 
       query2 += ' GROUP BY DATE(l.fecha_creacion) ORDER BY fecha';
@@ -682,6 +695,10 @@ class BoletoService {
         query3 += ' AND l.comedor_id = ?';
         params3.push(parseInt(comedorId));
       }
+      if (loteId) {
+        query3 += ' AND l.lote_id = ?';
+        params3.push(loteId);
+      }
 
       query3 += ' GROUP BY DATE(b.fecha_creacion) ORDER BY fecha';
 
@@ -703,6 +720,10 @@ class BoletoService {
       if (comedorId) {
         query4 += ' AND l.comedor_id = ?';
         params4.push(parseInt(comedorId));
+      }
+      if (loteId) {
+        query4 += ' AND l.lote_id = ?';
+        params4.push(loteId);
       }
 
       query4 += ' GROUP BY l.contratista ORDER BY total_boletos DESC LIMIT 5';
@@ -729,6 +750,10 @@ class BoletoService {
         query5 += ' AND b.comedor_id = ?';
         params5.push(parseInt(comedorId));
       }
+      if (loteId) {
+        query5 += ' AND l.lote_id = ?';
+        params5.push(loteId);
+      }
 
       query5 += ' GROUP BY b.comedor_id, c.nombre, con.nombre ORDER BY total_boletos DESC';
 
@@ -750,6 +775,10 @@ class BoletoService {
       if (comedorId) {
         query6 += ' AND l.comedor_id = ?';
         params6.push(parseInt(comedorId));
+      }
+      if (loteId) {
+        query6 += ' AND l.lote_id = ?';
+        params6.push(loteId);
       }
 
       query6 += ' GROUP BY l.estado_pago';
@@ -774,6 +803,10 @@ class BoletoService {
         query7 += ' AND l.comedor_id = ?';
         params7.push(parseInt(comedorId));
       }
+      if (loteId) {
+        query7 += ' AND l.lote_id = ?';
+        params7.push(loteId);
+      }
 
       query7 += ' GROUP BY DATE(he.fecha) ORDER BY fecha';
 
@@ -795,6 +828,10 @@ class BoletoService {
       if (comedorId) {
         query8 += ' AND l.comedor_id = ?';
         params8.push(parseInt(comedorId));
+      }
+      if (loteId) {
+        query8 += ' AND l.lote_id = ?';
+        params8.push(loteId);
       }
 
       query8 += ' GROUP BY l.precio_nombre ORDER BY cantidad DESC';

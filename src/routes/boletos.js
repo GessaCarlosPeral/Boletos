@@ -239,8 +239,8 @@ router.post('/usar-con-foto', uploadEscaneo.single('foto'), async (req, res) => 
 // Obtener estadísticas
 router.get('/estadisticas', async (req, res) => {
   try {
-    const { contratista, comedorId } = req.query;
-    const stats = await boletoService.obtenerEstadisticas(contratista, comedorId);
+    const { contratista, comedorId, loteId } = req.query;
+    const stats = await boletoService.obtenerEstadisticas(contratista, comedorId, loteId);
     res.json(stats);
   } catch (error) {
     console.error('Error obteniendo estadísticas:', error);
@@ -435,11 +435,12 @@ router.get('/historial-descargas/:loteId', requireAuth, async (req, res) => {
 // Obtener datos para gráficas
 router.get('/graficas', async (req, res) => {
   try {
-    const { contratista, comedorId, dias } = req.query;
+    const { contratista, comedorId, loteId, dias } = req.query;
     const datos = await boletoService.obtenerDatosGraficas(
       contratista,
       comedorId,
-      dias ? parseInt(dias) : 30
+      dias ? parseInt(dias) : 30,
+      loteId
     );
 
     res.json(datos);
