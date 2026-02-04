@@ -4,8 +4,14 @@ let stream = null;
 const statsValidados = { count: 0 };
 const statsRechazados = { count: 0 };
 
+// Estado del modo continuo
+let continuousMode = false;
+let lastScannedCode = null;
+let lastScanTime = 0;
+const SCAN_COOLDOWN = 2000; // 2 segundos entre escaneos del mismo código
+
 // Variables del DOM (se inicializan cuando el DOM esté listo)
-let video, canvas, ctx, startScanBtn, manualCodeInput, validateManualBtn, resultDiv, offlineIndicator, cameraInstructions, historialList;
+let video, canvas, ctx, startScanBtn, manualCodeInput, validateManualBtn, resultDiv, offlineIndicator, cameraInstructions, historialList, continuousModeToggle;
 
 // Esperar a que el DOM esté completamente cargado
 document.addEventListener('DOMContentLoaded', () => {
@@ -25,6 +31,7 @@ function inicializarApp() {
   offlineIndicator = document.getElementById('offlineIndicator');
   cameraInstructions = document.getElementById('cameraInstructions');
   historialList = document.getElementById('historialList');
+  continuousModeToggle = document.getElementById('continuousModeToggle');
 
   console.log('✅ Elementos inicializados:', {
     video: !!video,
@@ -59,6 +66,21 @@ function inicializarApp() {
     manualCodeInput.addEventListener('keypress', (e) => {
       if (e.key === 'Enter') {
         validateManualBtn.click();
+      }
+    });
+  }
+
+  // Event listener para modo continuo
+  if (continuousModeToggle) {
+    continuousModeToggle.addEventListener('change', (e) => {
+      continuousMode = e.target.checked;
+      console.log('🔄 Modo continuo:', continuousMode ? 'ACTIVADO' : 'DESACTIVADO');
+
+      // Actualizar indicador visual
+      const toggleLabel = document.querySelector('.toggle-label');
+      if (toggleLabel) {
+        toggleLabel.textContent = continuousMode ? 'Modo continuo activo' : 'Modo continuo';
+        toggleLabel.style.color = continuousMode ? '#10b981' : '#64748b';
       }
     });
   }
@@ -172,11 +194,31 @@ function tick() {
       });
 
       if (code) {
+        const now = Date.now();
+
+        // Anti-duplicado: ignorar si es el mismo código en menos de SCAN_COOLDOWN
+        if (code.data === lastScannedCode && (now - lastScanTime) < SCAN_COOLDOWN) {
+          requestAnimationFrame(tick);
+          return;
+        }
+
+        // Actualizar último código escaneado
+        lastScannedCode = code.data;
+        lastScanTime = now;
+
         console.log('✅ QR detectado:', code.data);
         vibrate();
         beep();
         validarBoleto(code.data);
-        stopScanning();
+
+        if (continuousMode) {
+          // En modo continuo, NO detener - seguir escaneando
+          console.log('🔄 Modo continuo: cámara sigue activa');
+          requestAnimationFrame(tick);
+        } else {
+          // En modo normal, detener escaneo
+          stopScanning();
+        }
         return;
       }
     } else {
@@ -346,9 +388,11 @@ function mostrarResultado(tipo, titulo, mensaje, detalles = null) {
   resultDiv.className = `result ${tipo}`;
   resultDiv.style.display = 'block';
 
+  // En modo continuo, resultado se oculta más rápido (3s vs 5s)
+  const displayTime = continuousMode ? 3000 : 5000;
   setTimeout(() => {
     resultDiv.style.display = 'none';
-  }, 5000);
+  }, displayTime);
 }
 
 // Mostrar loading

@@ -43,9 +43,40 @@
     .container {
       flex: 1;
       padding: 1.5rem;
-      max-width: 600px;
-      margin: 0 auto;
       width: 100%;
+    }
+
+    /* Layout principal de dos columnas */
+    .main-layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .column-left,
+    .column-right {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .column-left {
+      position: sticky;
+      top: 1.5rem;
+      height: fit-content;
+    }
+
+    /* Responsive - móvil mantiene layout vertical */
+    @media (max-width: 768px) {
+      .main-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .column-left {
+        position: static;
+      }
     }
 
     .scanner-container {
@@ -53,7 +84,6 @@
       border-radius: 1rem;
       padding: 1.5rem;
       box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-      margin-bottom: 1rem;
     }
 
     #video {
@@ -118,6 +148,7 @@
       box-shadow: 0 10px 30px rgba(0,0,0,0.2);
       display: none;
       animation: slideUp 0.3s ease-out;
+      /* En desktop, el resultado se muestra en columna derecha */
     }
 
     @keyframes slideUp {
@@ -182,7 +213,6 @@
       background: rgba(255, 255, 255, 0.95);
       border-radius: 1rem;
       padding: 1rem;
-      margin-top: 1rem;
       display: grid;
       grid-template-columns: repeat(2, 1fr);
       gap: 1rem;
@@ -208,7 +238,6 @@
       background: rgba(255, 255, 255, 0.95);
       border-radius: 1rem;
       padding: 1rem;
-      margin-top: 1rem;
     }
 
     .historial-title {
@@ -351,6 +380,67 @@
       border: 3px solid #10b981;
       box-shadow: 0 0 20px rgba(16, 185, 129, 0.5);
     }
+
+    /* Toggle de modo continuo */
+    .continuous-mode-toggle {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.75rem;
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px solid #e2e8f0;
+    }
+
+    .toggle-switch {
+      position: relative;
+      width: 50px;
+      height: 26px;
+      flex-shrink: 0;
+    }
+
+    .toggle-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .toggle-slider {
+      position: absolute;
+      cursor: pointer;
+      inset: 0;
+      background-color: #cbd5e1;
+      border-radius: 26px;
+      transition: 0.3s;
+    }
+
+    .toggle-slider:before {
+      position: absolute;
+      content: "";
+      height: 20px;
+      width: 20px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      border-radius: 50%;
+      transition: 0.3s;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+
+    input:checked + .toggle-slider {
+      background-color: #10b981;
+    }
+
+    input:checked + .toggle-slider:before {
+      transform: translateX(24px);
+    }
+
+    .toggle-label {
+      font-size: 0.875rem;
+      color: #64748b;
+      font-weight: 500;
+      transition: color 0.3s;
+    }
   </style>
 </head>
 <body>
@@ -364,55 +454,71 @@
   </div>
 
   <div class="container">
-    <div class="scanner-container">
-      <div class="camera-instructions" id="cameraInstructions">
-        <h3>📷 Cámara Activa</h3>
-        <p>Apunta la cámara al código QR del boleto</p>
-        <p><strong>El boleto será consumido automáticamente</strong></p>
+    <div class="main-layout">
+      <!-- Columna Izquierda: Scanner -->
+      <div class="column-left">
+        <div class="scanner-container">
+          <div class="camera-instructions" id="cameraInstructions">
+            <h3>📷 Cámara Activa</h3>
+            <p>Apunta la cámara al código QR del boleto</p>
+            <p><strong>El boleto será consumido automáticamente</strong></p>
+          </div>
+
+          <video id="video" playsinline></video>
+          <canvas id="canvas"></canvas>
+
+          <button class="btn btn-primary" id="startScan">
+            🎫 Escanear y Consumir Boleto
+          </button>
+
+          <div class="continuous-mode-toggle">
+            <label class="toggle-switch">
+              <input type="checkbox" id="continuousModeToggle">
+              <span class="toggle-slider"></span>
+            </label>
+            <span class="toggle-label">Modo continuo</span>
+          </div>
+
+          <div class="manual-input">
+            <input
+              type="text"
+              id="manualCode"
+              placeholder="O ingresa el código manualmente"
+              autocomplete="off"
+            >
+            <button class="btn btn-secondary" id="validateManual">
+              ✓ Validar Código
+            </button>
+          </div>
+        </div>
       </div>
 
-      <video id="video" playsinline></video>
-      <canvas id="canvas"></canvas>
+      <!-- Columna Derecha: Resultado + Stats + Historial -->
+      <div class="column-right">
+        <div class="result" id="result"></div>
 
-      <button class="btn btn-primary" id="startScan">
-        🎫 Escanear y Consumir Boleto
-      </button>
+        <div class="stats">
+          <div class="stat-item">
+            <div class="stat-value" id="statsValidados">0</div>
+            <div class="stat-label">Validados Hoy</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-value" id="statsRechazados">0</div>
+            <div class="stat-label">Rechazados</div>
+          </div>
+        </div>
 
-      <div class="manual-input">
-        <input
-          type="text"
-          id="manualCode"
-          placeholder="O ingresa el código manualmente"
-          autocomplete="off"
-        >
-        <button class="btn btn-secondary" id="validateManual">
-          ✓ Validar Código
-        </button>
-      </div>
-    </div>
-
-    <div class="result" id="result"></div>
-
-    <div class="stats">
-      <div class="stat-item">
-        <div class="stat-value" id="statsValidados">0</div>
-        <div class="stat-label">Validados Hoy</div>
-      </div>
-      <div class="stat-item">
-        <div class="stat-value" id="statsRechazados">0</div>
-        <div class="stat-label">Rechazados</div>
-      </div>
-    </div>
-
-    <div class="historial-section">
-      <div class="historial-title">📋 Últimos Movimientos</div>
-      <div class="historial-list" id="historialList">
-        <div class="historial-empty">Cargando historial...</div>
+        <div class="historial-section">
+          <div class="historial-title">📋 Últimos Movimientos</div>
+          <div class="historial-list" id="historialList">
+            <div class="historial-empty">Cargando historial...</div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
 
   <script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js"></script>
-  <script src="/validator/validator.js?v=3"></script>
+  <script src="/validator/validator.js?v=4"></script>
 </body>
 </html>
