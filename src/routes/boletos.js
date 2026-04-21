@@ -415,7 +415,7 @@ router.post('/descargar/:loteId', requireAuth, auditDescarga(), async (req, res)
 
   } catch (error) {
     console.error('Error registrando descarga:', error);
-    res.status(400).json({ error: error.message });
+    res.status(400).json({ error: `Backend Error: ${error.message || error}` });
   }
 });
 

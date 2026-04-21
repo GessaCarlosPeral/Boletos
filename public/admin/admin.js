@@ -1308,7 +1308,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const data = await response.json();
 
         if (!response.ok) {
-          throw new Error(data.error || 'Error al registrar descarga');
+          console.log('Server response:', data);
+          throw new Error(data.error || data.message || `HTTP ${response.status} - RAW: ${JSON.stringify(data)}`);
         }
 
         // Si el registro fue exitoso, obtener el PDF URL y descargarlo
