@@ -765,3 +765,12 @@ body {
   font-weight: 600;
   margin-left: 0.5rem;
 }
+
+/* ==================================================
+   ESTADOS DE PAGOS / LOTES
+   ================================================== */
+.estado-CANCELADO {
+  background-color: #fee2e2 !important;
+  color: #ef4444 !important;
+}
+
