@@ -439,10 +439,13 @@ class BoletoService {
               return;
             }
 
+            // Límite de descargas desactivado a petición
+            /*
             if (lote.intentos_descarga >= lote.max_descargas) {
               reject(new Error(`Límite de descargas alcanzado (${lote.max_descargas})`));
               return;
             }
+            */
 
             // Incrementar contador
             db.run(
@@ -491,7 +494,6 @@ class BoletoService {
     });
   }
 
-  // Verificar si puede descargar
   async puedeDescargar(loteId) {
     return new Promise((resolve, reject) => {
       db.get(
@@ -504,15 +506,11 @@ class BoletoService {
             resolve({ puede: false, razon: 'Lote no encontrado' });
           } else if (lote.estado_pago !== 'AUTORIZADO') {
             resolve({ puede: false, razon: 'Lote no autorizado' });
-          } else if (lote.intentos_descarga >= lote.max_descargas) {
-            resolve({
-              puede: false,
-              razon: `Límite de descargas alcanzado (${lote.max_descargas}/${lote.max_descargas})`
-            });
           } else {
+            // Siempre permitir descarga, límite desactivado
             resolve({
               puede: true,
-              intentosRestantes: lote.max_descargas - lote.intentos_descarga,
+              intentosRestantes: 'Ilimitados',
               pdfUrl: lote.pdf_url
             });
           }
