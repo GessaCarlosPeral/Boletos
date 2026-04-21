@@ -140,10 +140,7 @@ class BoletoService {
   async validarBoleto(uuid) {
     return new Promise((resolve, reject) => {
       db.get(
-        `SELECT b.*, l.estado_pago 
-         FROM boletos b 
-         LEFT JOIN lotes l ON b.lote = l.lote_id 
-         WHERE b.uuid = ?`,
+        'SELECT * FROM boletos WHERE uuid = ?',
         [uuid],
         (err, boleto) => {
           if (err) {
@@ -154,13 +151,6 @@ class BoletoService {
               valido: false,
               mensaje: 'Boleto no existe',
               lote: null
-            });
-          } else if (boleto.estado_pago === 'CANCELADO') {
-            resolve({
-              valido: false,
-              mensaje: 'Boleto inválido: El lote ha sido CANCELADO',
-              lote: boleto.lote,
-              boleto
             });
           } else if (boleto.redimido) {
             // No registrar aquí - el endpoint lo hará con la foto
@@ -908,34 +898,6 @@ class BoletoService {
           }
         }
       );
-    });
-  }
-
-  // Cancelar un lote completo
-  async cancelarLote(loteId, usuarioId, motivo) {
-    return new Promise((resolve, reject) => {
-      db.get('SELECT lote_id, notas FROM lotes WHERE lote_id = ?', [loteId], (err, lote) => {
-        if (err) {
-          return reject(err);
-        }
-        if (!lote) {
-          return resolve({ exito: false, mensaje: 'Lote no encontrado' });
-        }
-
-        const notasPrevias = lote.notas ? lote.notas + '\\n' : '';
-        const nuevasNotas = notasPrevias + \`Cancelado por \${usuarioId} - Motivo: \${motivo}\`;
-
-        db.run(
-          \`UPDATE lotes 
-           SET estado_pago = 'CANCELADO', notas = ? 
-           WHERE lote_id = ?\`,
-          [nuevasNotas, loteId],
-          function(err) {
-            if (err) return reject(err);
-            resolve({ exito: this.changes > 0, mensaje: 'Lote cancelado' });
-          }
-        );
-      });
     });
   }
 }

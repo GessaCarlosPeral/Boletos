@@ -718,41 +718,4 @@ router.get('/ultimos-movimientos', async (req, res) => {
   }
 });
 
-// Cancelar un lote
-router.post('/lotes/:loteId/cancelar', requireAuth, requireAnyPermission(['boletos.crear', 'boletos.autorizar']), async (req, res) => {
-  try {
-    const { loteId } = req.params;
-    const { motivo } = req.body;
-
-    if (!motivo) {
-      return res.status(400).json({
-        success: false,
-        error: 'El motivo es requerido para cancelar un lote'
-      });
-    }
-
-    // Usar nombre del usuario de la sesión autenticada
-    const usuarioNombre = req.user.nombre_completo || req.user.username || 'Admin';
-    const resultado = await boletoService.cancelarLote(loteId, usuarioNombre, motivo);
-
-    if (resultado.exito) {
-      res.json({
-        success: true,
-        mensaje: resultado.mensaje
-      });
-    } else {
-      res.status(404).json({
-        success: false,
-        error: resultado.mensaje || 'Error al cancelar'
-      });
-    }
-  } catch (error) {
-    console.error('Error cancelando lote:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
-
 module.exports = router;

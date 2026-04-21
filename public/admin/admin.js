@@ -768,11 +768,6 @@ async function verDetalleLote(loteId) {
       }
     }
 
-    // Obtener usuario actual para evaluar permisos
-    const userStr = localStorage.getItem('auth_user');
-    const userActivo = userStr ? JSON.parse(userStr) : null;
-    const esAdmin = userActivo && (userActivo.rol === 'Administrador' || userActivo.nivelAcceso >= 3);
-
     // Agregar botones de acciones
     infoHtml += `
       <div style="margin-top: 1.5rem; padding-top: 1rem; border-top: 2px solid #e2e8f0;">
@@ -785,16 +780,6 @@ async function verDetalleLote(loteId) {
         <p style="margin-top: 0.5rem; text-align: center; color: #64748b; font-size: 0.875rem;">
           Incluye estado detallado de cada boleto y rechazos
         </p>
-        ${(esAdmin && infoPago.estado_pago !== 'CANCELADO') ? `
-        <div style="margin-top: 1rem; border-top: 1px dashed #e2e8f0; padding-top: 1rem;">
-          <button onclick="cancelarLote('${loteId}')" style="width: 100%; padding: 1rem; background: #ef4444; color: white; border: none; border-radius: 0.5rem; cursor: pointer; font-size: 1rem; font-weight: 600;">
-            🚫 Cancelar Lote
-          </button>
-          <p style="margin-top: 0.5rem; text-align: center; color: #ef4444; font-size: 0.875rem; font-weight: bold;">
-            Acción irreversible. Los boletos no redimidos quedarán inválidos.
-          </p>
-        </div>
-        ` : ''}
       </div>
     `;
 
@@ -3998,34 +3983,3 @@ async function eliminarComedorGlobal(id, nombre) {
     alert('❌ Error al eliminar comedor: ' + error.message);
   }
 }
-
-// Cancelar un lote
-window.cancelarLote = async function(loteId) {
-  const motivo = prompt('¿Estás seguro que deseas cancelar este lote? Ingresa el motivo de cancelación obligatoriamente:');
-  if (!motivo) return;
-
-  if (confirm(`Al cancelar el lote ${loteId}, todos los boletos no usados quedarán inválidos de forma permanente. Esta acción impactará los reportes. ¿Deseas continuar de todos modos?`)) {
-    try {
-      const response = await fetchAutenticado(`/api/boletos/lotes/${loteId}/cancelar`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ motivo })
-      });
-      const data = await response.json();
-      
-      if (response.ok && data.success) {
-        alert('Lote cancelado exitosamente');
-        document.getElementById('loteModal').classList.remove('show');
-        const contratistaSeleccionado = document.getElementById('filtroContratista').value;
-        cargarLotes(contratistaSeleccionado);
-      } else {
-        alert('Error: ' + (data.error || 'No se pudo cancelar el lote'));
-      }
-    } catch (e) {
-      console.error('Error cancelando lote:', e);
-      alert('Error de conexión al cancelar lote');
-    }
-  }
-};
