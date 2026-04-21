@@ -1296,8 +1296,8 @@ document.addEventListener('DOMContentLoaded', () => {
       submitBtn.textContent = 'Registrando...';
 
       try {
-        // Primero registrar la descarga
-        const response = await fetch(`/api/boletos/descargar/${loteIdParaDescargar}`, {
+        // Primero registrar la descarga (autenticado)
+        const response = await fetchAutenticado(`/api/boletos/descargar/${loteIdParaDescargar}`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
