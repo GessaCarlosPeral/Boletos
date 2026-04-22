@@ -332,13 +332,29 @@ async function validarBoleto(uuid) {
     } else {
       // BOLETO RECHAZADO (con foto guardada para detectar fraude)
       console.log('✅ Foto de rechazo guardada:', resultado.fotoCapturada ? 'SÍ' : 'NO');
+      
+      let mensajeRechazo = resultado.mensaje;
+      let detallesRechazo = null;
+
+      if (resultado.fechaUso) {
+        const fechaFormateada = new Date(resultado.fechaUso).toLocaleString('es-MX', { 
+            weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', 
+            hour: '2-digit', minute: '2-digit', second: '2-digit' 
+        });
+
+        // Crear un banner de advertencia muy visible para boletos duplicados
+        mensajeRechazo = `${resultado.mensaje}
+            <div style="margin-top: 15px; background: #fee2e2; border: 3px solid #dc2626; padding: 15px; border-radius: 10px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+                <div style="color: #991b1b; font-size: 0.9rem; font-weight: bold; text-transform: uppercase; margin-bottom: 5px;">⚠️ Atención: Fecha de uso original</div>
+                <div style="color: #b91c1c; font-size: 1.3rem; font-weight: 900; line-height: 1.2;">${fechaFormateada}</div>
+            </div>`;
+      }
+
       mostrarResultado(
         'error',
         '❌ BOLETO RECHAZADO',
-        resultado.mensaje,
-        resultado.fechaUso ? {
-          'Usado el': new Date(resultado.fechaUso).toLocaleString('es-MX')
-        } : null
+        mensajeRechazo,
+        detallesRechazo
       );
       statsRechazados.count++;
       vibrateError();
