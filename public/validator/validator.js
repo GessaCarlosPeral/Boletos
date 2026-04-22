@@ -322,7 +322,7 @@ async function validarBoleto(uuid) {
         `Acceso autorizado al comedor${resultado.fotoCapturada ? ' 📸' : ''}`,
         {
           'Contratista': resultado.boleto?.contratista || 'N/A',
-          'Fecha de uso': new Date(resultado.fechaUso).toLocaleString('es-MX'),
+          'Fecha de uso': new Date(resultado.fechaUso).toLocaleString('es-MX', { timeZone: 'America/Hermosillo' }),
           'Ubicación': resultado.ubicacion
         }
       );
@@ -338,6 +338,7 @@ async function validarBoleto(uuid) {
 
       if (resultado.fechaUso) {
         const fechaFormateada = new Date(resultado.fechaUso).toLocaleString('es-MX', { 
+            timeZone: 'America/Hermosillo',
             weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', 
             hour: '2-digit', minute: '2-digit', second: '2-digit' 
         });
@@ -606,12 +607,20 @@ async function cargarHistorial() {
 
     // Renderizar movimientos
     historialList.innerHTML = data.movimientos.map(mov => {
-      const fecha = new Date(mov.fecha);
+      // Forzar que la fecha de SQLite se lea como UTC antes de convertirla
+      let fechaStr = mov.fecha;
+      if (fechaStr && !fechaStr.includes('Z') && !fechaStr.includes('T')) {
+          fechaStr = fechaStr.replace(' ', 'T') + 'Z';
+      }
+      const fecha = new Date(fechaStr);
+
       const horaFormateada = fecha.toLocaleTimeString('es-MX', {
+        timeZone: 'America/Hermosillo',
         hour: '2-digit',
         minute: '2-digit'
       });
       const fechaFormateada = fecha.toLocaleDateString('es-MX', {
+        timeZone: 'America/Hermosillo',
         day: '2-digit',
         month: 'short'
       });
