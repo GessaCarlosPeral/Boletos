@@ -404,8 +404,8 @@ function mostrarResultado(tipo, titulo, mensaje, detalles = null) {
   resultDiv.className = `result ${tipo}`;
   resultDiv.style.display = 'block';
 
-  // En modo continuo, resultado se oculta más rápido (3s vs 5s)
-  const displayTime = continuousMode ? 3000 : 5000;
+  // En modo continuo, resultado se oculta más rápido (5s vs 7s)
+  const displayTime = continuousMode ? 5000 : 7000;
   setTimeout(() => {
     resultDiv.style.display = 'none';
   }, displayTime);
